@@ -86,9 +86,9 @@ node src/plan.mjs <城市> <预算> [地点关键词] [选项...]
 | 码 | 何时出现 | 怎么跟用户说 |
 | --- | --- | --- |
 | `COUPON_IGNORED` | `couponMode=off` 但确实有券可用 | 「你有 N 张券可用，最划算那张本可省 ¥X」 |
-| `EXTRA_SPEND` | 为了用券多花了钱 | 「为用这张券多花 ¥X，券省 ¥Y，净省/净亏 ¥Z」 |
-| `COUPON_NOT_WORTH_IT` / `EXTRA_SPEND_HIGH` | 净亏，或多花超过优惠额一半 | 明确说这张券不划算 |
-| `CHEAPER_WITHOUT_COUPON` | 不用券更便宜（件数差异） | 说清是件数不同，不是券没用 |
+| `EXTRA_SPEND` | 为了用券多花了钱 | 「为用这张券多花 ¥X，券省 ¥Y，净省 ¥Z」；热量目标下是「为拿到更多热量多花」 |
+| `COUPON_NOT_WORTH_IT` / `EXTRA_SPEND_HIGH` | 净亏，或多花超过优惠额一半（仅 `cost` 目标） | 明确说这张券不划算 |
+| `CHEAPER_WITHOUT_COUPON` | 不用券更便宜 | `cost` 目标下已自动改成不用券方案，照实说「已按不用券给你」；热量目标下说清是件数不同 |
 | `CALORIE_SUBSET` | 热量目标下只比较了有数据的那部分餐品 | 「只在 N 款有官方热量的餐品里比较」 |
 | `ITEM_NOT_LISTED` / `COUPON_EXPIRED` / `THRESHOLD_NOT_MET` | 券用不了 | 说清是哪一条，别暗示能用 |
 | `REQUIRE_UNSATISFIED` | 预算内凑不出必须含的品类 | 说清降级成了什么 |

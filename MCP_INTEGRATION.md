@@ -123,8 +123,8 @@ query-meal-detail {"code":"<精选单人餐三件套>"}
 | `COUPON_EXPIRED` | 券已过期 |
 | `THRESHOLD_NOT_MET` | 本单原价未达满减门槛 |
 | `ITEM_NOT_LISTED` | 券的目标商品本店未在售 |
-| `EXTRA_SPEND` / `EXTRA_SPEND_HIGH` / `COUPON_NOT_WORTH_IT` | 为用券凑单导致多花钱 |
-| `CHEAPER_WITHOUT_COUPON` | 不用券方案更便宜（件数差异） |
+| `EXTRA_SPEND` / `EXTRA_SPEND_HIGH` / `COUPON_NOT_WORTH_IT` | 为用券凑单导致多花钱（后两个只在 `cost` 目标下出现，热量目标下多花钱是目标本身，不判「不划算」） |
+| `CHEAPER_WITHOUT_COUPON` | 不用券方案更便宜：`cost` 目标下会**直接改用**不用券方案并说明原因；热量类目标下仅提示件数差异 |
 | `CALORIE_SUBSET` | 热量目标下只在有官方热量的子集里比较 |
 | `REQUIRE_UNSATISFIED` | 预算内凑不出「必须含某品类」 |
 | `SANITY_NO_STAPLE` / `SANITY_REPEAT_DOMINANT` | 组合没有主食 / 单一商品占了本单金额一半以上 |

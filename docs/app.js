@@ -260,7 +260,7 @@ function renderPlan(plan, options) {
 
   $("result").innerHTML = `
     <h2>算出来的方案</h2>
-    <div class="result-total"><b>¥${money(plan.total)}</b><span>实付${plan.coupon ? `，已用「${escapeHtml(plan.coupon.name)}」` : "，未用券"}</span></div>
+    <div class="result-total"><b>¥${money(plan.total)}</b><span>实付${plan.coupon ? ` · 已用「${escapeHtml(plan.coupon.name)}」` : " · 未用券"}</span></div>
     <ul class="items">${items}</ul>
     <div class="lines">${lines.join("")}</div>
     <p class="muted" style="margin-top:14px;font-size:12.5px">

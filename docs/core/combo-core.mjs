@@ -360,7 +360,7 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
     candidateMenu = measurable;
   }
 
-  const chosen = search(candidateMenu, active, limit, searchOptions);
+  let chosen = search(candidateMenu, active, limit, searchOptions);
   if (chosen.infeasible && requireCategories.length) {
     notices.push({
       code: "REQUIRE_UNSATISFIED",
@@ -371,6 +371,17 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
     throw new Error(`在有官方热量的餐品里找不到预算 ¥${limit} 以内的组合，请放宽预算或改用 cost 目标`);
   }
   const baseline = couponMode === "off" ? null : search(candidateMenu, [], limit, searchOptions);
+
+  // cost 目标下绝不给「用券反而更贵」的答案：凑单把原价推高了、券省的钱抵不过多花的钱时，
+  // 直接改给不用券的方案（用户要的是省钱，不是把券用掉）。
+  // 热量 / 每元热量目标不套这条——多花的钱换的是更多热量，那正是这两个目标本身。
+  if (optimize === "cost" && couponMode === "auto" && baseline && chosen.total > baseline.total + 1e-9) {
+    notices.push({
+      code: "CHEAPER_WITHOUT_COUPON",
+      message: `用「${chosen.deal?.coupon?.name ?? "券"}」要 ¥${chosen.total}，比不用券的 ¥${baseline.total} 更贵（凑单把原价推高了），已按不用券给你`,
+    });
+    chosen = baseline;
+  }
 
   if (picked && !chosen.deal) {
     const reason = couponUnusableReason(picked, menu, chosen.subtotal, today) ?? {
@@ -403,16 +414,20 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
   if (baseline && chosen.saved > 0 && chosen.subtotal > baseline.subtotal) {
     extraCostForCoupon = round2(chosen.subtotal - baseline.subtotal);
     netSaving = round2(chosen.saved - extraCostForCoupon);
+    // cost 目标下差价只可能是「多花钱换更多件数」，净省一定 >= 0（更贵的情况上面已经换成不用券方案）；
+    // 热量类目标里多花的钱换的是更多热量，是目标本身，所以只报差价、不下「不划算」的结论。
+    const costMode = optimize === "cost";
     notices.push({
       code: "EXTRA_SPEND",
-      message:
-        netSaving >= 0
+      message: costMode
+        ? netSaving >= 0
           ? `为用这张券多花 ¥${extraCostForCoupon}，券省 ¥${chosen.saved}，净省 ¥${netSaving}`
-          : `为用这张券多花 ¥${extraCostForCoupon}，券只省 ¥${chosen.saved}，净亏 ¥${Math.abs(netSaving)}`,
+          : `为用这张券多花 ¥${extraCostForCoupon}，券只省 ¥${chosen.saved}，净亏 ¥${Math.abs(netSaving)}`
+        : `为拿到更多${optimize === "calories" ? "热量" : "性价比"}多花 ¥${extraCostForCoupon}，券省 ¥${chosen.saved}；想省钱可看备选里的「最省」`,
     });
-    if (netSaving < 0) {
+    if (costMode && netSaving < 0) {
       notices.push({ code: "COUPON_NOT_WORTH_IT", message: "这张券算下来并不划算，可以改用不用券方案" });
-    } else if (extraCostForCoupon > chosen.saved / 2) {
+    } else if (costMode && extraCostForCoupon > chosen.saved / 2) {
       notices.push({ code: "EXTRA_SPEND_HIGH", message: "⚠ 多花的钱已超过优惠额的一半，这张券未必划算" });
     }
   }

@@ -97,6 +97,28 @@ test("凑单多花要算出来并显式提示", () => {
   assert.ok(plan.total <= plan.baseline.total + 1e-9);
 });
 
+test("cost 目标下用券更贵时自动改给不用券方案", () => {
+  // 满 25 减 5：凑到三件 35-5=30 刚好进预算，但两件 25.5 更便宜。
+  // 用户要的是省钱，不是把券用掉，所以必须给 25.5 那个方案并说明原因。
+  const trapMenu = [
+    { id: "burger", name: "麦香鸡", price: 17, category: "main", kcal: 400 },
+    { id: "hashbrown", name: "脆薯饼", price: 8.5, category: "side", kcal: 146 },
+    { id: "coke", name: "可乐", price: 9.5, category: "drink", kcal: 107 },
+  ];
+  const coupons = [{ id: "t25", name: "满 25 减 5", type: "threshold_off", minSpend: 25, amount: 5 }];
+  const plan = planCombo(trapMenu, coupons, 30);
+  assert.equal(plan.coupon, null, "更贵的用券方案不该被采纳");
+  assert.ok(plan.total <= plan.baseline.total + 1e-9, "cost 目标必须不高于不用券方案");
+  assert.ok(
+    plan.notices.some((n) => n.code === "CHEAPER_WITHOUT_COUPON"),
+    "改给不用券方案必须说明原因",
+  );
+
+  // couponMode=pick 是用户点名要用这张券，保持用券但在别的分支给出披露
+  const picked = planCombo(trapMenu, coupons, 30, { couponMode: "pick", couponId: "t25" });
+  assert.equal(picked.coupon?.id, "t25", "点名用券时不擅自换方案");
+});
+
 test("excludeCoupons 排除指定的券", () => {
   const coupons = [
     { id: "t", name: "满20减3", type: "threshold_off", minSpend: 20, amount: 3 },
