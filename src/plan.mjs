@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
 import { McdMcpClient } from "./mcp.mjs";
-import { planCombo, CATEGORY_ORDER } from "./combo.mjs";
+import { planCombo, CATEGORY_ORDER, OPTIMIZE_LABEL } from "./combo.mjs";
 
 // 餐品类型判定：以商品名为主信号，分类名兜底。
 // 实测菜单仅按分类名归类会出错，原因有三：
@@ -20,7 +20,7 @@ const SIDE_ITEM =
 const MAIN_ITEM = /堡|卷/;
 const DRINK_CAT = /饮品|饮料|咖啡|茶/;
 const SIDE_CAT = /小食|甜品|蘸酱|薯条|鸡块|炸鸡/;
-const PREFERRED = /套餐|件套|随心|1\+1|薯条|鸡块|冰淇淋|甜筒|派$|可乐|雪碧|纯悦/;
+export const PREFERRED = /套餐|件套|随心|1\+1|薯条|鸡块|冰淇淋|甜筒|派$|可乐|雪碧|纯悦/;
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -208,7 +208,7 @@ export async function probePrice(client, base, items, coupon = null) {
   const payload = {
     ...base,
     items: items.map((item) => {
-      const entry = { productCode: item.id, quantity: 1 };
+      const entry = { productCode: item.id, quantity: item.qty ?? 1 };
       if (coupon && coupon.productCodes?.includes(item.id)) {
         entry.couponId = coupon.id;
         entry.couponCode = coupon.code;
@@ -248,6 +248,142 @@ export function annotateAvailability(coupons, items) {
   return coupons;
 }
 
+// 热量数据来自官方 list-nutrition-foods（实测 160 项，含 energyKcal），
+// 不用手工维护热量表。返回体里的 data 是一段「表头 + 逗号分隔行」的字符串：
+//   [160]{productName,nutritionDescription,energyKj,energyKcal,...}:
+//   猪柳麦满分,null,1288,308,16,16,24,781,213
+// 第 0 列商品名、第 3 列 kcal。解析失败就当作没有热量数据，不猜。
+export function parseNutrition(payload) {
+  const table = new Map();
+  const text = typeof payload?.data === "string" ? payload.data : "";
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("[") || line.includes("{productName")) continue;
+    const cells = line.split(",");
+    if (cells.length < 4) continue;
+    const name = cells[0].trim();
+    const kcal = Number(cells[3]);
+    if (!name || !Number.isFinite(kcal) || kcal <= 0) continue;
+    table.set(name, kcal);
+  }
+  return table;
+}
+
+const normalizeName = (value) =>
+  String(value ?? "")
+    .replace(/\s+/g, "")
+    .replace(/[（）()]/g, "")
+    .replace(/™/g, "");
+
+// 按商品名精确匹配（归一化后），匹配不到就保持未知。
+// 不做前缀模糊匹配：套餐名包含单品名，但热量不是单品热量，糊上去就是编数据。
+export function attachCalories(items, table) {
+  if (!table?.size) return items;
+  const normalizedTable = new Map();
+  for (const [name, kcal] of table) normalizedTable.set(normalizeName(name), kcal);
+  return items.map((item) => {
+    const kcal = table.get(item.name) ?? normalizedTable.get(normalizeName(item.name));
+    return kcal ? { ...item, kcal } : item;
+  });
+}
+
+// 套餐（三件套/四件套/随心选…）在营养表里查不到，但官方 query-meal-detail
+// 会返回套餐构成（rounds[]，每轮带默认选项）。把默认子项的热量按官方数据累加，
+// 就能得到套餐热量——仍然是官方数据，不是估算。任一子项查不到就整单记未知，不做部分累加。
+export function parseComposition(payload, table) {
+  const rounds = payload?.data?.rounds ?? [];
+  if (!rounds.length) return { kcal: null, parts: [], unknown: ["套餐构成为空"] };
+  const normalizedTable = new Map();
+  for (const [name, kcal] of table ?? []) normalizedTable.set(normalizeName(name), kcal);
+  const lookup = (name) => table?.get(name) ?? normalizedTable.get(normalizeName(name));
+
+  const parts = [];
+  const unknown = [];
+  let kcal = 0;
+  for (const round of rounds) {
+    const choices = round.choices ?? [];
+    const chosen = choices.find((c) => c.isDefault === 1) ?? choices.find((c) => (c.quantity ?? 0) > 0) ?? choices[0];
+    if (!chosen?.name) {
+      unknown.push(round.name ?? "未知分组");
+      continue;
+    }
+    const qty = Number(chosen.quantity) || 1;
+    parts.push({ name: chosen.name, qty });
+    const value = lookup(chosen.name);
+    if (Number.isFinite(value)) kcal += value * qty;
+    else unknown.push(chosen.name);
+  }
+  return { kcal: unknown.length ? null : round2(kcal), parts, unknown };
+}
+
+const COMBO_NAME = /套餐|件套|随心|拼乐|组合|精选|任选/;
+
+// 只给「查不到热量、且可能被选中」的商品补构成明细（每分类前 perCategory 个），
+// 不按名称白名单硬筛：像「牛肉堡单品精选」这种不带套餐字样的商品，
+// 官方详情里同样是「选择汉堡 → 默认 汉堡包」的构成，累加才是正确热量。
+// 单次运行最多 limit 次调用、并发 concurrency，失败静默降级为未知。
+export async function enrichCalories(client, base, items, table, { prefer = () => false, perCategory = 8, limit = 24, concurrency = 6, ids = null } = {}) {
+  if (!table?.size) return { items, calls: 0, resolved: 0 };
+
+  const targets = [];
+  if (ids?.length) {
+    // 精准补全：只查指定的这几个商品（用于给最终推荐的组合补热量）
+    targets.push(...items.filter((item) => ids.includes(item.id) && !Number.isFinite(item.kcal)));
+  } else {
+    for (const category of CATEGORY_ORDER) {
+      const pool = items
+        .filter((item) => item.category === category && !Number.isFinite(item.kcal))
+        .sort(
+          (a, b) =>
+            Number(prefer(b)) - Number(prefer(a)) ||
+            Number(COMBO_NAME.test(b.name)) - Number(COMBO_NAME.test(a.name)) ||
+            a.price - b.price,
+        );
+      targets.push(...pool.slice(0, perCategory));
+    }
+  }
+  const queue = targets.slice(0, limit);
+  if (!queue.length) return { items, calls: 0, resolved: 0 };
+
+  const result = new Map();
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < queue.length) {
+      const item = queue[cursor++];
+      try {
+        const payload = extractJson(textPart(await client.callTool("query-meal-detail", { ...base, code: item.id })));
+        const composition = parseComposition(payload, table);
+        if (Number.isFinite(composition.kcal)) result.set(item.id, composition);
+      } catch {
+        // 查不到就当未知，不影响主流程
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+
+  return {
+    items: items.map((item) => {
+      const composition = result.get(item.id);
+      return composition ? { ...item, kcal: composition.kcal, kcalParts: composition.parts } : item;
+    }),
+    calls: queue.length,
+    resolved: result.size,
+  };
+}
+
+// 忌口/过敏：按商品名关键词剔除。全被剔掉时明确报错，不返回空组合。
+export function filterAvoid(items, avoid) {
+  const words = (Array.isArray(avoid) ? avoid : String(avoid ?? "").split(/[,，、\s]+/))
+    .map((word) => String(word).trim())
+    .filter(Boolean);
+  if (!words.length) return items;
+  const kept = items.filter((item) => !words.some((word) => item.name.includes(word)));
+  if (!kept.length) {
+    throw new Error(`忌口「${words.join("、")}」把当前门店的全部餐品都过滤掉了，请放宽忌口或换一家门店`);
+  }
+  return kept;
+}
+
 // 门店定位。官方接口的 searchType 语义容易踩坑：
 //   searchType=2 按地点搜索（必须带 keyword）；searchType=1 只搜「收藏餐厅」且忽略 city。
 // 实测 searchType=1 传 city=北京市 返回的是账号收藏的佛山门店，因此城市查询必须走 2，
@@ -280,7 +416,18 @@ export function parseBudget(arg) {
   return n;
 }
 
-export async function plan({ city = "郑州市", budget = Infinity, storeCode, keyword } = {}) {
+export async function plan({
+  city = "郑州市",
+  budget = Infinity,
+  storeCode,
+  keyword,
+  optimize = "cost",
+  couponMode = "auto",
+  couponId,
+  avoid = [],
+  maxItems,
+  today,
+} = {}) {
   const client = new McdMcpClient();
   await client.initialize();
 
@@ -297,7 +444,19 @@ export async function plan({ city = "郑州市", budget = Infinity, storeCode, k
   const base = { storeCode: store.storeCode, beType: 1, orderType: 1 };
 
   const menuRaw = await client.callTool("query-meals", base);
-  const items = normalizeMenu(extractJson(textPart(menuRaw)));
+  let items = normalizeMenu(extractJson(textPart(menuRaw)));
+
+  // 热量走官方 list-nutrition-foods（无入参）。拿不到就当没有热量数据，不用估算值顶替。
+  let nutrition = new Map();
+  try {
+    nutrition = parseNutrition(extractJson(textPart(await client.callTool("list-nutrition-foods", {}))));
+  } catch {
+    nutrition = new Map();
+  }
+  items = attachCalories(filterAvoid(items, avoid), nutrition);
+  // 套餐热量 = 官方套餐构成里默认子项的热量之和（任一子项查不到就整单记未知）
+  const enriched = await enrichCalories(client, base, items, nutrition, { prefer: (item) => PREFERRED.test(item.name) });
+  items = enriched.items;
 
   let coupons = [];
   try {
@@ -307,16 +466,37 @@ export async function plan({ city = "郑州市", budget = Infinity, storeCode, k
     coupons = [];
   }
 
-  const combo = planCombo(
-    items.map(({ tags, originalPrice, ...rest }) => rest),
-    coupons,
-    budget,
-    { prefer: (item) => PREFERRED.test(item.name) },
-  );
+  let combo = null;
+  const buildCombo = () =>
+    planCombo(
+      items.map(({ tags, originalPrice, ...rest }) => rest),
+      coupons,
+      budget,
+      {
+        prefer: (item) => PREFERRED.test(item.name),
+        optimize,
+        couponMode,
+        couponId,
+        maxItems,
+        today: today ?? new Date().toISOString().slice(0, 10),
+      },
+    );
+  combo = buildCombo();
+
+  // 第二轮：给最终选中的商品补热量（官方套餐构成本就是子项之和），补到就重算一遍，
+  // 保证「热量」行说的是这份组合的真实值，而不是「未知」。
+  const unknownInCombo = combo.items.filter((item) => !Number.isFinite(item.kcal)).map((item) => item.id);
+  if (unknownInCombo.length) {
+    const patch = await enrichCalories(client, base, items, nutrition, { ids: unknownInCombo });
+    if (patch.resolved) {
+      items = patch.items;
+      combo = buildCombo();
+    }
+  }
 
   // 价格探针：无法本地计算优惠的券（载荷里没有类型/金额字段，如活动券），
   // 用官方 calculate-price 探测真实节省；更省且在预算内则采用探针组合。
-  // 每个券最多 3 次探测，任何失败都降级为「仅展示」，不影响主流程。
+  // 任何失败都降级为「仅展示」，但会给出结构化原因，不笼统带过。
   const limit = Number.isFinite(budget) ? budget : Infinity;
   let best = { items: combo.items, subtotal: combo.subtotal, saved: combo.saved, total: combo.total, coupon: combo.coupon, via: "local" };
   const consider = (cand) => {
@@ -324,13 +504,20 @@ export async function plan({ city = "郑州市", budget = Infinity, storeCode, k
     if (cand.total > limit && best.total <= limit) return;
     best = cand;
   };
+  const oracleNotices = [];
   for (const coupon of coupons) {
     if (coupon.type || coupon.remaining === 0) continue;
     const oracleItems = oracleCombo(combo.items, coupon, items);
     const appliesToCombo = combo.items.some((item) => coupon.productCodes?.includes(item.id));
     const differs =
       oracleItems && (oracleItems.length !== combo.items.length || oracleItems.some((item, i) => item.id !== combo.items[i]?.id));
-    if (!appliesToCombo && !differs) continue; // 券与当前组合无关，保持仅展示
+    if (!appliesToCombo && !differs) {
+      oracleNotices.push({
+        code: coupon.targetOnSale === false ? "ITEM_OFF_SALE" : "ITEM_NOT_LISTED",
+        message: `${coupon.name}：适用商品不在本店在售清单里，只能展示`,
+      });
+      continue; // 券与当前组合无关，保持仅展示
+    }
     // 候选一：本地最优组合原样挂券（覆盖订单级优惠）
     const withOnLocal = await probePrice(client, base, combo.items, coupon);
     if (withOnLocal && withOnLocal.price < combo.subtotal) {
@@ -350,11 +537,16 @@ export async function plan({ city = "郑州市", budget = Infinity, storeCode, k
       if (basePrice && withCoupon && withCoupon.price < basePrice.price) {
         consider({
           items: oracleItems,
-          subtotal: round2(oracleItems.reduce((sum, item) => sum + item.price, 0)),
+          subtotal: round2(oracleItems.reduce((sum, item) => sum + item.price * (item.qty ?? 1), 0)),
           saved: round2(basePrice.price - withCoupon.price),
           total: withCoupon.price,
           coupon: { id: coupon.id, name: coupon.name, type: "price_oracle" },
           via: "oracle",
+        });
+      } else if (!basePrice || !withCoupon) {
+        oracleNotices.push({
+          code: "NETWORK_ERROR",
+          message: `${coupon.name}：试算请求失败，已跳过该券（优惠未知）`,
         });
       }
     }
@@ -362,31 +554,89 @@ export async function plan({ city = "郑州市", budget = Infinity, storeCode, k
 
   const finalCombo =
     best.via === "local"
-      ? combo
-      : {
-          items: best.items.map(({ id, name, price, category }) => ({ id, name, price, category })),
-          subtotal: best.subtotal,
-          coupon: best.coupon,
-          saved: best.saved,
-          total: round2(best.total),
-          budget: Number.isFinite(budget) ? budget : null,
-          overBudget: best.total > limit,
-        };
+      ? { ...combo, notices: [...combo.notices, ...oracleNotices] }
+      : (() => {
+          const byId = new Map(items.map((item) => [item.id, item]));
+          const merged = best.items.map((item) => {
+            const source = byId.get(item.id);
+            const out = { id: item.id, name: item.name, price: item.price, category: item.category, qty: item.qty ?? 1 };
+            if (Number.isFinite(source?.kcal)) out.kcal = source.kcal;
+            return out;
+          });
+          const known = merged.filter((item) => Number.isFinite(item.kcal));
+          return {
+            items: merged,
+            itemsText: merged.map((item) => `${item.name} ¥${item.price}${item.qty > 1 ? `×${item.qty}` : ""}`).join(" + "),
+            subtotal: best.subtotal,
+            coupon: best.coupon,
+            saved: best.saved,
+            netSaving: best.saved,
+            total: round2(best.total),
+            budget: Number.isFinite(budget) ? budget : null,
+            overBudget: best.total > limit,
+            infeasible: false,
+            optimize: combo.optimize,
+            couponMode: combo.couponMode,
+            extraCostForCoupon: 0,
+            ignoredCoupon: combo.ignoredCoupon,
+            baseline: combo.baseline,
+            alternatives: [],
+            stats: {
+              kcal: round2(known.reduce((sum, item) => sum + item.kcal * item.qty, 0)),
+              unknownUnits: merged.filter((item) => !Number.isFinite(item.kcal)).reduce((sum, item) => sum + item.qty, 0),
+              units: merged.reduce((sum, item) => sum + item.qty, 0),
+              categories: [],
+            },
+            notices: [
+              ...combo.notices,
+              ...oracleNotices,
+              { code: "PRICE_FROM_ORACLE", message: "这张券的优惠由官方 calculate-price 试算得出" },
+            ],
+          };
+        })();
 
-  return { store, storeSource, menuSize: items.length, combo: finalCombo, coupons };
+  return {
+    store,
+    storeSource,
+    menuSize: items.length,
+    combo: finalCombo,
+    coupons,
+    nutritionSize: nutrition.size,
+    bundleResolved: enriched.resolved,
+    avoid,
+  };
 }
 
 function render(result) {
-  const { store, storeSource, combo, coupons, menuSize } = result;
+  const { store, storeSource, combo, coupons, menuSize, nutritionSize } = result;
   const lines = [];
   const sourceNote = storeSource === "favorite" ? "｜⚠ 未搜到该城市的门店，沿用收藏门店" : "";
   lines.push(`门店：${store.storeName}（${store.storeCode}）  在售餐品：${menuSize} 款${sourceNote}`);
-  lines.push("推荐组合：" + combo.items.map((item) => `${item.name} ¥${item.price}`).join(" + "));
+
+  const lineOf = (item) => `${item.name} ¥${item.price}${item.qty > 1 ? `×${item.qty}` : ""}`;
+  lines.push(`推荐组合：${combo.itemsText ?? combo.items.map(lineOf).join(" + ")}`);
+
   const priceLine = [`原价 ¥${combo.subtotal}`];
   if (combo.coupon) priceLine.push(`券 -¥${combo.saved}（${combo.coupon.name}）`);
   priceLine.push(`实付 ¥${combo.total}`, `预算 ${combo.budget ?? "不限"}`);
   if (combo.overBudget) priceLine.push("⚠ 超预算");
+  if (combo.optimize && combo.optimize !== "cost") priceLine.push(`目标 ${OPTIMIZE_LABEL[combo.optimize] ?? combo.optimize}`);
   lines.push(priceLine.join("｜"));
+
+  const stats = combo.stats ?? {};
+  if (!nutritionSize) {
+    lines.push("热量：本次没拿到官方营养数据，未计入");
+  } else if (stats.kcal > 0) {
+    const unknown = stats.unknownUnits ? `${stats.unknownUnits} 件热量未知，未计入` : "全部商品均有官方热量数据";
+    lines.push(`热量：合计 ${stats.kcal} kcal（${unknown}）`);
+  } else {
+    lines.push("热量：本单商品都查不到官方热量数据，未计入");
+  }
+
+  if (combo.baseline && combo.coupon) {
+    lines.push(`对照：不用券 ${combo.baseline.itemsText} 实付 ¥${combo.baseline.total}`);
+  }
+
   const usedId = combo.coupon?.id;
   if (coupons.length) {
     const comboIds = new Set(combo.items.map((item) => item.id));
@@ -405,6 +655,13 @@ function render(result) {
   } else {
     lines.push("可用券：当前门店未查到匹配的券");
   }
+
+  for (const alt of combo.alternatives ?? []) {
+    lines.push(`备选（${alt.label}）：${alt.itemsText} 实付 ¥${alt.total}（${alt.note}）`);
+  }
+  for (const notice of combo.notices ?? []) {
+    lines.push(`提示：${notice.message}`);
+  }
   return lines.join("\n");
 }
 
@@ -412,7 +669,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     process.loadEnvFile();
   } catch {}
-  const [city, budgetArg, keyword] = process.argv.slice(2);
+  const positional = [];
+  const flags = {};
+  for (const arg of process.argv.slice(2)) {
+    const match = /^--([^=]+)(?:=(.*))?$/.exec(arg);
+    if (match) flags[match[1]] = match[2] ?? true;
+    else positional.push(arg);
+  }
+  const [city, budgetArg, keyword] = positional;
   let budget = Infinity;
   try {
     budget = parseBudget(budgetArg);
@@ -420,7 +684,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error(err.message);
     process.exit(1);
   }
-  plan({ city, budget, keyword })
+  plan({
+    city,
+    budget,
+    keyword,
+    optimize: typeof flags.optimize === "string" ? flags.optimize : "cost",
+    couponMode: flags["no-coupon"] ? "off" : typeof flags.coupon === "string" ? "pick" : "auto",
+    couponId: typeof flags.coupon === "string" ? flags.coupon : undefined,
+    avoid: typeof flags.avoid === "string" ? flags.avoid.split(/[,，、]/) : [],
+  })
     .then((result) => console.log(render(result)))
     .catch((err) => {
       console.error(err.message);

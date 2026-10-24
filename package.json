@@ -25,6 +25,9 @@
     "tools": "node src/mcp.mjs list",
     "call": "node src/mcp.mjs call",
     "demo": "node src/combo.mjs examples/menu.json 30",
+    "demo:serve": "node scripts/serve-demo.mjs 8080",
+    "demo:sync": "node scripts/sync-demo.mjs",
+    "demo:data": "node scripts/build-demo-data.mjs",
     "test": "node --test",
     "plan": "node src/plan.mjs"
   }

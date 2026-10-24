@@ -15,7 +15,7 @@
 
 ## 实际使用的 Tool
 
-主流程固定调用三个工具（见 `src/plan.mjs`）：
+主流程调用五个工具（见 `src/plan.mjs`）：
 
 | Tool | 传参 | 用途 |
 | --- | --- | --- |
@@ -23,6 +23,8 @@
 | `query-meals` | `storeCode`、`beType=1`、`orderType=1` | 拉取全部分类菜单与实时价格（`data.categories[]` + `data.meals{}`） |
 | `query-store-coupons` | `storeCode`、`beType=1`、`orderType=1` | 拉取该门店当前可用券（`title`、`products[].productCode`、`tradeDateTime`） |
 | `calculate-price` | `storeCode`、`beType=1`、`orderType=1`、`items[].productCode/quantity/couponId/couponCode` | 活动券无法本地计算优惠时，挂券试算真实应付价（`data.price` 单位：分） |
+| `list-nutrition-foods` | 无（或按分类页） | 官方单品营养表，逐行 `name,null,kJ,kcal,...`，作为热量数据源 |
+| `query-meal-detail` | `{"code":"<productCode>"}` ⚠️ 参数名是 `code` | 返回 `data.rounds[]` 子项构成，用于把套餐热量按子项累加 |
 
 > `searchType` 语义（实测）：`2` = 按地点搜索、必须带 `keyword`；`1` = 只搜「收藏餐厅」并忽略 `city`。用 `1` 查城市会稳定返回账号收藏的那家店（实测传「北京市」返回佛山门店），结果错但看不出错。因此城市查询走 `2`，搜不到才退回 `1` 并在输出里标注「沿用收藏门店」。
 
@@ -48,12 +50,20 @@ query-store-coupons ──► couponsFor()：映射为内部券结构
    ▼
 annotateAvailability() ──► 标注目标商品本店是否在售
    ▼
+list-nutrition-foods ──► parseNutrition()：单品营养表 → Map<商品名, kcal>
+   │
+   ▼
+enrichCalories() ──► 按名字给菜单项挂热量；套餐走 query-meal-detail，
+   │                 rounds[] 默认子项热量累加（任一未知则整单 null）
+   ▼
 planCombo() ──► 券感知的组合搜索：前缀枚举 × 每类 top-K 候选 × 每张券，
-   │            输出「预算内、用掉最划算那张券」的组合
+   │            输出「预算内、用掉最划算那张券」的组合 + Top-3 备选
+   ▼
+对最终选中的组合补查热量（enrichCalories({ids})）
    ▼
 calculate-price（可选）──► 活动券本地算不出优惠时挂券试算，更省则采用
    ▼
-四行结论：门店 / 推荐组合 / 价格（原价·券优惠·实付·预算）/ 可用券
+四行结论：门店 / 推荐组合 / 价格（原价·券优惠·实付·预算）/ 可用券（+ 热量行）
 ```
 
 握手与传输层封装在 `src/mcp.mjs`：`initialize` → `notifications/initialized` → `tools/call`，同时兼容 `application/json` 与 `text/event-stream` 两种响应格式，`tools/list` 支持游标分页。
@@ -80,6 +90,51 @@ calculate-price（可选）──► 活动券本地算不出优惠时挂券试�
 实测线上券载荷**只有** `title`、`couponId`、`couponCode`、`tradeDateTime`、`products`、`promotionId` 六个字段，既无类型也无金额门槛——也就是说活动券（如「1024码力翻倍」）在本地完全算不出优惠。对这类券，主流程用官方 `calculate-price` 做**价格探针**：把券挂到其适用商品上试算，与不挂券的试算价对比得出真实节省，更省且在预算内才采用；试算不通（券不适用、目标商品未在售）就保持仅展示。
 
 券的目标商品本店未在售时（例如「龙焰鸡腿堡两件套」下架，仅剩三件套/四件套），输出会标注「目标商品本店未在售」，不向用户暗示该券可用。
+
+## 热量数据的取法
+
+热量**不落本地表**，全部来自 MCP：
+
+1. `list-nutrition-foods` 返回逐行文本 `名称,null,kJ,kcal,...`，`parseNutrition()` 解析成 `Map<名称, kcal>`；
+2. 菜单项按**商品名**反查（官方表用单品名，所以只有 17–24% 的菜单项能直接命中）；
+3. **套餐没有独立热量条目，用 `query-meal-detail` 的 `rounds[]` 子项累加**：
+
+```
+query-meal-detail {"code":"<精选单人餐三件套>"}
+  → data.rounds[]：每轮取 isDefault===1 的默认项，quantity>0 时再取 choices[0]
+  → 板烧鸡腿堡 391 + 中薯条 289 + 可乐中杯 147 = 827 kcal
+```
+
+4. **任一子项查不到就整单记 `null`**，不做部分累加——部分累加会系统性低估套餐热量，比「未知」更容易误导用户（`test/plan.test.mjs` 里有对应用例锁住这个行为）；
+5. 主流程对**最终选中的组合**会做一次定向补查（`enrichCalories(client, base, items, table, { ids })`），把「N 件热量未知」尽量压到 0，避免因为「选组合时还没查」而白白丢掉热量。
+
+热量类目标（`calories` / `value`）只在有热量的餐品子集里比较，并输出 `CALORIE_SUBSET` 说明——把未知当 0 会让优化系统性偏向恰好有数据的商品。
+
+## 输出原因码
+
+`planCombo` 的 `notices[]` 是一组 `{ code, message }`，给用户看的是 `message`，`code` 用于测试断言和上层做差异化处理。**不允许静默降级**：每一种「建议可能不靠谱」的情况都有对应码。
+
+| code | 触发条件 |
+| --- | --- |
+| `COUPON_IGNORED` | 显式 `couponMode=off` 但存在可用券 |
+| `COUPON_NOT_FOUND` | `couponMode=pick` 指定的券找不到 |
+| `NOT_APPLICABLE` | 指定的券对当前组合不产生优惠 |
+| `FIELD_MISSING` | 券响应缺类型/金额字段，或兑换券没指定商品 |
+| `COUPON_EXPIRED` | 券已过期 |
+| `THRESHOLD_NOT_MET` | 本单原价未达满减门槛 |
+| `ITEM_NOT_LISTED` | 券的目标商品本店未在售 |
+| `EXTRA_SPEND` / `EXTRA_SPEND_HIGH` / `COUPON_NOT_WORTH_IT` | 为用券凑单导致多花钱 |
+| `CHEAPER_WITHOUT_COUPON` | 不用券方案更便宜（件数差异） |
+| `CALORIE_SUBSET` | 热量目标下只在有官方热量的子集里比较 |
+| `REQUIRE_UNSATISFIED` | 预算内凑不出「必须含某品类」 |
+| `SANITY_NO_STAPLE` / `SANITY_REPEAT_DOMINANT` | 组合没有主食 / 单一商品占了本单金额一半以上 |
+| `NETWORK_ERROR` | 试算时接口失败，已降级为不含该券的结果 |
+
+## 在线 Demo 与线上的一致性
+
+<https://caob23.github.io/mcd-what-to-eat/>
+
+Demo 是静态页（`docs/`，GitHub Pages 托管，无框架无 CDN 无构建），但它**跑的是同一份组合器**：`docs/core/combo-core.mjs` 由 `npm run demo:sync` 从 `src/core/combo-core.mjs` 复制而来，`test/demo.test.mjs` 断言两者逐字节一致。Demo 的菜单数据是脱敏快照（去掉了 `storeCode` 与 `couponCode`），页面也不含任何 Token——所有计算都在浏览器本地完成，不发网络请求。
 
 ## 业务价值
 

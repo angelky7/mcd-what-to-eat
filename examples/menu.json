@@ -1,10 +1,10 @@
 {
   "items": [
-    { "id": "bigmac", "name": "巨无霸", "price": 24, "category": "main" },
-    { "id": "mchicken", "name": "麦香鸡", "price": 15, "category": "main" },
-    { "id": "fries", "name": "中薯", "price": 11, "category": "side" },
-    { "id": "small-fries", "name": "小薯", "price": 7, "category": "side" },
-    { "id": "coke", "name": "中杯可乐", "price": 9, "category": "drink" },
+    { "id": "bigmac", "name": "巨无霸", "price": 24, "category": "main", "kcal": 513 },
+    { "id": "mchicken", "name": "麦香鸡", "price": 15, "category": "main", "kcal": 369 },
+    { "id": "fries", "name": "中薯条", "price": 11, "category": "side", "kcal": 289 },
+    { "id": "small-fries", "name": "小薯条", "price": 7, "category": "side", "kcal": 210 },
+    { "id": "coke", "name": "可乐中杯", "price": 9, "category": "drink", "kcal": 147 },
     { "id": "water", "name": "纯水", "price": 4, "category": "drink" }
   ],
   "coupons": [

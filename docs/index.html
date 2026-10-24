@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>麦麦吃什么 · 预算内用掉最划算那张券</title>
+<meta name="description" content="基于麦当劳 MCP 实时门店/菜单/券数据的点餐组合计算器，在线 Demo 无需 Token。" />
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #1c1f23;
+    --muted: #61676e;
+    --line: #e4e7eb;
+    --brand: #da291c;
+    --brand-soft: #fff1ef;
+    --accent: #ffc72c;
+    --ok: #1a7f4b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 64px; }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .2px; }
+  header p.sub { margin: 0; color: var(--muted); }
+  .banner {
+    margin: 18px 0 0; padding: 10px 14px; border-radius: 10px;
+    background: var(--brand-soft); border: 1px solid #f6d3cd; color: #8a2318; font-size: 13px;
+  }
+  .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; margin-top: 18px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card h2 { margin: 0 0 14px; font-size: 15px; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
+  label.field { display: block; margin-bottom: 14px; }
+  label.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type="number"], input[type="text"], select, textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px;
+    font: inherit; color: inherit; background: #fff;
+  }
+  input[type="number"]:focus, input[type="text"]:focus, select:focus, textarea:focus {
+    outline: 2px solid #ffd9d4; border-color: var(--brand);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 14px; }
+  .chip {
+    border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px;
+    padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--brand); color: var(--brand); }
+  .radios { display: flex; flex-wrap: wrap; gap: 8px; }
+  .radios label {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px;
+    border: 1px solid var(--line); border-radius: 999px; font-size: 13px; cursor: pointer; background: #fff;
+  }
+  .radios input { accent-color: var(--brand); }
+  .coupons { display: grid; gap: 6px; max-height: 168px; overflow: auto; padding-right: 4px; }
+  .coupons label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+  .coupons input { margin-top: 3px; accent-color: var(--brand); }
+  .coupons small { color: var(--muted); }
+  .result-total { display: flex; align-items: baseline; gap: 10px; }
+  .result-total b { font-size: 40px; line-height: 1.1; color: var(--brand); }
+  .result-total span { color: var(--muted); font-size: 13px; }
+  .items { margin: 14px 0 0; padding: 0; list-style: none; }
+  .items li {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px;
+  }
+  .items li:last-child { border-bottom: 0; }
+  .items .meta { color: var(--muted); font-size: 12px; }
+  .lines { margin-top: 14px; display: grid; gap: 7px; font-size: 13.5px; }
+  .line { padding: 9px 11px; border-radius: 9px; background: #f8f9fa; border: 1px solid var(--line); }
+  .line.warn { background: #fffaf0; border-color: #f6e3b4; color: #7a5a12; }
+  .line.bad { background: #fdf1f0; border-color: #f6d3cd; color: #8a2318; }
+  .line b { color: inherit; }
+  .muted { color: var(--muted); }
+  details { margin-top: 18px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
+  textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; margin-top: 10px; }
+  .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .btn {
+    border: 1px solid var(--brand); background: var(--brand); color: #fff; border-radius: 9px;
+    padding: 8px 14px; font: inherit; font-size: 13.5px; cursor: pointer;
+  }
+  .btn.ghost { background: #fff; color: var(--brand); }
+  footer { margin-top: 26px; font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  footer a { color: var(--brand); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .star { border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; background: #fff; text-decoration: none !important; }
+  .err { color: #8a2318; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>麦麦吃什么</h1>
+    <p class="sub">预算内、用掉最划算那张券，该点什么。</p>
+    <p class="banner" id="banner">示例菜单数据，非实时门店库存与价格。</p>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>条件</h2>
+      <label class="field">
+        <span>门店</span>
+        <select id="store"></select>
+      </label>
+      <label class="field">
+        <span>预算（元，留空表示不限）</span>
+        <input id="budget" type="number" min="0" step="1" value="30" />
+      </label>
+      <div class="chips" id="budget-chips"></div>
+
+      <div class="field">
+        <span class="muted" style="font-size:13px">优化目标</span>
+        <div class="radios" id="optimize"></div>
+      </div>
+
+      <div class="field">
+        <span class="muted" style="font-size:13px">用券</span>
+        <div class="radios" id="coupon-mode"></div>
+      </div>
+
+      <div class="field">
+        <span class="muted" style="font-size:13px">可用券（取消勾选 = 不想用这张）</span>
+        <div class="coupons" id="coupons"></div>
+      </div>
+
+      <div class="field">
+        <span class="muted" style="font-size:13px">必须包含</span>
+        <div class="radios" id="require"></div>
+      </div>
+
+      <label class="field">
+        <span>忌口 / 过敏（逗号分隔，如：辣,花生）</span>
+        <input id="avoid" type="text" placeholder="留空表示不忌口" />
+      </label>
+
+      <label class="field">
+        <span>件数上限</span>
+        <input id="max-items" type="number" min="1" max="6" step="1" value="4" />
+      </label>
+
+      <details>
+        <summary>导入我自己的菜单 / 券数据</summary>
+        <p class="muted" style="font-size:12.5px;margin:8px 0 0">
+          粘贴 <code>{ "items": [...], "coupons": [...] }</code>，字段同 <code>examples/menu.json</code>；
+          <code>category</code> 取 main / side / drink，可选 <code>kcal</code>。粘贴后不写入 URL。
+        </p>
+        <textarea id="custom-json" placeholder='{"items":[{"id":"a","name":"巨无霸","price":26.5,"category":"main","kcal":550}],"coupons":[]}'></textarea>
+        <div class="row">
+          <button class="btn" id="apply-custom" type="button">使用这份数据</button>
+          <button class="btn ghost" id="reset-custom" type="button">恢复示例数据</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card" id="result" aria-live="polite">
+      <h2>算出来的方案</h2>
+      <p class="muted">正在载入示例数据…</p>
+    </section>
+  </div>
+
+  <footer>
+    <a class="star" id="star" href="https://github.com/caob23/mcd-what-to-eat" target="_blank" rel="noopener">★ Star 这个项目</a>
+    <a href="https://github.com/caob23/mcd-what-to-eat#readme" target="_blank" rel="noopener">想接真实门店数据？看 README</a>
+    <span>本页无追踪、无登录、无需 Token</span>
+  </footer>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { couponsFor, extractJson, normalizeMenu, parseBudget, oracleCombo, probePrice, categoryOf, annotateAvailability, pickStore } from "../src/plan.mjs";
+import { couponsFor, extractJson, normalizeMenu, parseBudget, oracleCombo, probePrice, categoryOf, annotateAvailability, pickStore, parseNutrition, attachCalories, parseComposition, enrichCalories, filterAvoid } from "../src/plan.mjs";
 
 test("标题语义兜底：兑换 / 折扣 / 满减 / 立减", () => {
   const coupons = couponsFor({
@@ -286,4 +286,131 @@ test("probePrice 把券挂到适用商品上", async () => {
     { productCode: "a", quantity: 1 },
     { productCode: "b", quantity: 1, couponId: "cid", couponCode: "ccode" },
   ]);
+});
+
+const nutritionText = [
+  "[3]{productName,nutritionDescription,energyKj,energyKcal,protein,fat,carbohydrate,sodium,calcium}:",
+  "  中薯条,null,1210,289,4,12,38,165,18",
+  "  可乐中杯,null,616,147,0,0,37,55,11",
+  "  板烧鸡腿堡,null,1636,391,23,17,34,806,120",
+].join("\n");
+
+test("parseNutrition 解析官方营养表", () => {
+  const table = parseNutrition({ data: nutritionText });
+  assert.equal(table.size, 3);
+  assert.equal(table.get("中薯条"), 289);
+  assert.equal(table.get("板烧鸡腿堡"), 391);
+});
+
+test("attachCalories 只按商品名精确匹配，套餐不被硬套单品热量", () => {
+  const table = parseNutrition({ data: nutritionText });
+  const items = attachCalories(
+    [
+      { id: "a", name: "板烧鸡腿堡", price: 24, category: "main" },
+      { id: "b", name: "板烧鸡腿堡三件套", price: 35, category: "main" },
+    ],
+    table,
+  );
+  assert.equal(items[0].kcal, 391);
+  assert.equal(items[1].kcal, undefined, "套餐不能继承单品热量");
+});
+
+test("parseComposition 把套餐子项热量累加", () => {
+  const table = parseNutrition({ data: nutritionText });
+  const payload = {
+    data: {
+      code: "9900016073",
+      name: "板烧鸡腿堡三件套",
+      rounds: [
+        { id: 1, name: "选择汉堡", choices: [{ code: "1", name: "板烧鸡腿堡", quantity: 1, isDefault: 1 }] },
+        {
+          id: 2,
+          name: "选择套餐内小食",
+          choices: [
+            { code: "2", name: "中薯条", quantity: 1, isDefault: 1 },
+            { code: "3", name: "大薯条", quantity: 0, isDefault: 0 },
+          ],
+        },
+        { id: 3, name: "选择饮品", choices: [{ code: "4", name: "可乐中杯", quantity: 1, isDefault: 1 }] },
+      ],
+    },
+  };
+  const composition = parseComposition(payload, table);
+  assert.equal(composition.kcal, 827); // 391 + 289 + 147
+  assert.deepEqual(composition.parts.map((part) => part.name), ["板烧鸡腿堡", "中薯条", "可乐中杯"]);
+});
+
+test("parseComposition 有子项查不到时整单记未知，不做部分累加", () => {
+  const table = parseNutrition({ data: nutritionText });
+  const payload = {
+    data: {
+      rounds: [
+        { id: 1, name: "选择汉堡", choices: [{ name: "板烧鸡腿堡", quantity: 1, isDefault: 1 }] },
+        { id: 2, name: "选择饮品", choices: [{ name: "某款没收录的饮料", quantity: 1, isDefault: 1 }] },
+      ],
+    },
+  };
+  const composition = parseComposition(payload, table);
+  assert.equal(composition.kcal, null);
+  assert.deepEqual(composition.unknown, ["某款没收录的饮料"]);
+});
+
+test("parseComposition 没有默认项时退回第一个有数量的候选", () => {
+  const table = parseNutrition({ data: nutritionText });
+  const payload = {
+    data: { rounds: [{ id: 1, name: "蓝区", choices: [{ name: "空", quantity: 0 }, { name: "板烧鸡腿堡", quantity: 1 }] }] },
+  };
+  assert.equal(parseComposition(payload, table).kcal, 391);
+});
+
+test("enrichCalories 只查缺热量的商品，并把套餐热量补上", async () => {
+  const table = parseNutrition({ data: nutritionText });
+  const calls = [];
+  const stub = {
+    callTool: async (name, args) => {
+      calls.push(args.code);
+      const body = {
+        success: true,
+        data: { rounds: [{ id: 1, name: "选择汉堡", choices: [{ name: "板烧鸡腿堡", quantity: 1, isDefault: 1 }] }] },
+      };
+      return { content: [{ type: "text", text: JSON.stringify(body) }] };
+    },
+  };
+  const items = [
+    { id: "known", name: "中薯条", price: 11, category: "side", kcal: 289 },
+    { id: "bundle", name: "板烧鸡腿堡三件套", price: 35, category: "main" },
+  ];
+  const result = await enrichCalories(stub, {}, items, table, { ids: ["bundle", "known"] });
+  assert.deepEqual(calls, ["bundle"], "已知热量的商品不应再查详情");
+  assert.equal(result.resolved, 1);
+  assert.equal(result.items.find((item) => item.id === "bundle").kcal, 391);
+});
+
+test("enrichCalories 请求失败时静默降级为未知", async () => {
+  const table = parseNutrition({ data: nutritionText });
+  const stub = { callTool: async () => { throw new Error("boom"); } };
+  const items = [{ id: "bundle", name: "板烧鸡腿堡三件套", price: 35, category: "main" }];
+  const result = await enrichCalories(stub, {}, items, table, { ids: ["bundle"] });
+  assert.equal(result.resolved, 0);
+  assert.equal(result.items[0].kcal, undefined);
+});
+
+test("没有营养表时不发任何详情请求", async () => {
+  let called = 0;
+  const stub = { callTool: async () => { called++; return { content: [] }; } };
+  const items = [{ id: "bundle", name: "板烧鸡腿堡三件套", price: 35, category: "main" }];
+  const result = await enrichCalories(stub, {}, items, new Map(), { ids: ["bundle"] });
+  assert.equal(called, 0);
+  assert.equal(result.calls, 0);
+});
+
+test("filterAvoid 按关键词剔除，剔空时明确报错", () => {
+  const items = [
+    { id: "a", name: "麦辣鸡腿堡", price: 23, category: "main" },
+    { id: "b", name: "巨无霸", price: 26, category: "main" },
+  ];
+  assert.deepEqual(filterAvoid(items, ["辣"]).map((item) => item.id), ["b"]);
+  assert.deepEqual(filterAvoid(items, "辣,脆").map((item) => item.id), ["b"]);
+  assert.equal(filterAvoid(items, []).length, 2);
+  assert.throws(() => filterAvoid(items, ["堡", "巨无霸"]), /全部餐品都过滤掉了/);
 });
