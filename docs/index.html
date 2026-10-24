@@ -1,174 +1,322 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>麦麦吃什么 · 预算内用掉最划算那张券</title>
-<meta name="description" content="基于麦当劳 MCP 实时门店/菜单/券数据的点餐组合计算器，在线 Demo 无需 Token。" />
-<style>
-  :root {
-    --bg: #f6f7f9;
-    --card: #ffffff;
-    --ink: #1c1f23;
-    --muted: #61676e;
-    --line: #e4e7eb;
-    --brand: #da291c;
-    --brand-soft: #fff1ef;
-    --accent: #ffc72c;
-    --ok: #1a7f4b;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--ink);
-    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 64px; }
-  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .2px; }
-  header p.sub { margin: 0; color: var(--muted); }
-  .banner {
-    margin: 18px 0 0; padding: 10px 14px; border-radius: 10px;
-    background: var(--brand-soft); border: 1px solid #f6d3cd; color: #8a2318; font-size: 13px;
-  }
-  .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; margin-top: 18px; }
-  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-  .card h2 { margin: 0 0 14px; font-size: 15px; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
-  label.field { display: block; margin-bottom: 14px; }
-  label.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-  input[type="number"], input[type="text"], select, textarea {
-    width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px;
-    font: inherit; color: inherit; background: #fff;
-  }
-  input[type="number"]:focus, input[type="text"]:focus, select:focus, textarea:focus {
-    outline: 2px solid #ffd9d4; border-color: var(--brand);
-  }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 14px; }
-  .chip {
-    border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px;
-    padding: 5px 12px; font: inherit; font-size: 13px; cursor: pointer;
-  }
-  .chip:hover { border-color: var(--brand); color: var(--brand); }
-  .radios { display: flex; flex-wrap: wrap; gap: 8px; }
-  .radios label {
-    display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px;
-    border: 1px solid var(--line); border-radius: 999px; font-size: 13px; cursor: pointer; background: #fff;
-  }
-  .radios input { accent-color: var(--brand); }
-  .coupons { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
-  .coupons label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
-  .coupons input { margin-top: 3px; accent-color: var(--brand); }
-  .coupons small { color: var(--muted); }
-  .result-total { display: flex; align-items: baseline; gap: 10px; }
-  .result-total b { font-size: 40px; line-height: 1.1; color: var(--brand); }
-  .result-total span { color: var(--muted); font-size: 13px; }
-  .items { margin: 14px 0 0; padding: 0; list-style: none; }
-  .items li {
-    display: flex; justify-content: space-between; gap: 10px;
-    padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px;
-  }
-  .items li:last-child { border-bottom: 0; }
-  .items .meta { color: var(--muted); font-size: 12px; }
-  .lines { margin-top: 14px; display: grid; gap: 7px; font-size: 13.5px; }
-  .line { padding: 9px 11px; border-radius: 9px; background: #f8f9fa; border: 1px solid var(--line); }
-  .line.warn { background: #fffaf0; border-color: #f6e3b4; color: #7a5a12; }
-  .line.bad { background: #fdf1f0; border-color: #f6d3cd; color: #8a2318; }
-  .line b { color: inherit; }
-  .muted { color: var(--muted); }
-  details { margin-top: 18px; }
-  details summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
-  textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; margin-top: 10px; }
-  .row { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-  .btn {
-    border: 1px solid var(--brand); background: var(--brand); color: #fff; border-radius: 9px;
-    padding: 8px 14px; font: inherit; font-size: 13.5px; cursor: pointer;
-  }
-  .btn.ghost { background: #fff; color: var(--brand); }
-  footer { margin-top: 26px; font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  footer a { color: var(--brand); text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
-  .star { border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; background: #fff; text-decoration: none !important; }
-  .err { color: #8a2318; }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header>
-    <h1>麦麦吃什么</h1>
-    <p class="sub">预算内、用掉最划算那张券，该点什么。</p>
-    <p class="banner" id="banner">示例门店菜单 + 官方热量（非实时）。券里标「虚构」的是演示券，只用于演示用券计算。</p>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>麦麦吃什么 · 今天吃什么由它算</title>
+    <meta name="description" content="麦当劳 MCP 餐品组合器：按预算和口味，算出用哪张券、点什么、多少钱、多少热量。" />
+    <style>
+      :root {
+        --red: #db001c;
+        --red-dark: #b00016;
+        --yellow: #ffbc0d;
+        --yellow-soft: #fff7e0;
+        --ink: #1a1a1a;
+        --ink-2: #4a4a4a;
+        --muted: #767676;
+        --line: #ececec;
+        --soft: #f7f7f7;
+        --radius: 16px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: #fff;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--red); }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: #f4f4f4; padding: 1px 5px; border-radius: 4px; }
 
-  <div class="grid">
-    <section class="card">
-      <h2>条件</h2>
-      <label class="field">
-        <span>门店</span>
-        <select id="store"></select>
-      </label>
-      <label class="field">
-        <span>预算（元，留空表示不限）</span>
-        <input id="budget" type="number" min="0" step="1" value="30" />
-      </label>
-      <div class="chips" id="budget-chips"></div>
+      /* ---------- 顶栏 ---------- */
+      .topbar { background: var(--red); color: #fff; position: sticky; top: 0; z-index: 20; }
+      .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 62px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: 0.3px; }
+      .brand svg { width: 30px; height: 30px; flex: none; }
+      .topbar .meta { font-size: 13px; opacity: 0.85; }
+      .wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
 
-      <div class="field">
-        <span class="muted" style="font-size:13px">优化目标</span>
-        <div class="radios" id="optimize"></div>
-      </div>
+      /* ---------- 头图 ---------- */
+      .hero { padding: 40px 0 22px; }
+      .hero h1 { margin: 0 0 10px; font-size: 40px; line-height: 1.15; letter-spacing: -0.5px; font-weight: 800; }
+      .hero h1 em { font-style: normal; color: var(--red); }
+      .hero p { margin: 0; color: var(--ink-2); max-width: 660px; }
+      .hero .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+      .tag {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--yellow-soft); color: #7a5a00;
+        border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+      }
 
-      <div class="field">
-        <span class="muted" style="font-size:13px">用券</span>
-        <div class="radios" id="coupon-mode"></div>
-      </div>
+      /* ---------- 布局 ---------- */
+      .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; padding-bottom: 40px; }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        .panel { position: static !important; }
+        .hero h1 { font-size: 30px; }
+      }
+      .panel { position: sticky; top: 86px; display: grid; gap: 12px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.035); }
+      .card-pad { padding: 16px; }
+      .field { margin-bottom: 18px; }
+      .field:last-child { margin-bottom: 0; }
+      .field > label, .field > .label {
+        display: block; font-size: 12px; font-weight: 700; color: var(--muted);
+        letter-spacing: 0.6px; margin-bottom: 8px;
+      }
 
-      <div class="field">
-        <span class="muted" style="font-size:13px">可用券（取消勾选 = 不想用这张）</span>
-        <div class="coupons" id="coupons"></div>
-      </div>
+      /* 门店切换 */
+      .stores { display: grid; gap: 8px; }
+      .store {
+        display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--line);
+        border-radius: 12px; padding: 10px 12px; cursor: pointer; background: #fff;
+        text-align: left; font: inherit; color: inherit; transition: border-color 0.15s, background 0.15s;
+      }
+      .store:hover { border-color: #d8d8d8; }
+      .store[aria-pressed="true"] { border-color: var(--red); background: #fff5f5; }
+      .store .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+      .store[aria-pressed="true"] .dot { background: var(--red); }
+      .store .name { font-weight: 700; font-size: 14px; }
+      .store .sub { font-size: 12px; color: var(--muted); }
 
-      <div class="field">
-        <span class="muted" style="font-size:13px">必须包含</span>
-        <div class="radios" id="require"></div>
-      </div>
+      /* 预算 */
+      .budget-head { display: flex; align-items: baseline; justify-content: space-between; }
+      .budget-value { font-size: 26px; font-weight: 800; color: var(--red); }
+      .budget-value small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+      input[type="range"] {
+        -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px;
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--yellow) var(--fill, 40%), #ececec var(--fill, 40%), #ececec 100%);
+        outline: none; margin: 12px 0 8px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+        background: #fff; border: 3px solid var(--red); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); cursor: pointer;
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--red); cursor: pointer;
+      }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip {
+        border: 1.5px solid var(--line); background: #fff; color: var(--ink-2);
+        border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
+      }
+      .chip:hover { border-color: #d8d8d8; }
+      .chip[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
 
-      <label class="field">
-        <span>忌口 / 过敏（逗号分隔，如：辣,花生）</span>
-        <input id="avoid" type="text" placeholder="留空表示不忌口" />
-      </label>
+      /* 目标卡 */
+      .goals { display: grid; gap: 8px; }
+      .goal {
+        display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line);
+        border-radius: 12px; padding: 10px 12px; background: #fff; cursor: pointer;
+        text-align: left; font: inherit; color: inherit; transition: all 0.15s;
+      }
+      .goal:hover { border-color: #d8d8d8; }
+      .goal[aria-pressed="true"] { border-color: var(--red); background: #fff5f5; }
+      .goal .ico { font-size: 18px; line-height: 1.2; }
+      .goal .t { font-weight: 700; font-size: 14px; }
+      .goal .d { font-size: 12px; color: var(--muted); }
 
-      <label class="field">
-        <span>件数上限</span>
-        <input id="max-items" type="number" min="1" max="6" step="1" value="4" />
-      </label>
+      input[type="text"] {
+        width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 9px 12px;
+        font: inherit; font-size: 14px; outline: none;
+      }
+      input[type="text"]:focus { border-color: var(--red); }
+      .switch { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); }
 
-      <details>
-        <summary>导入我自己的菜单 / 券数据</summary>
-        <p class="muted" style="font-size:12.5px;margin:8px 0 0">
-          粘贴 <code>{ "items": [...], "coupons": [...] }</code>，字段同 <code>examples/menu.json</code>；
-          <code>category</code> 取 main / side / drink，可选 <code>kcal</code>。粘贴后不写入 URL。
-        </p>
-        <textarea id="custom-json" placeholder='{"items":[{"id":"a","name":"巨无霸","price":26.5,"category":"main","kcal":550}],"coupons":[]}'></textarea>
-        <div class="row">
-          <button class="btn" id="apply-custom" type="button">使用这份数据</button>
-          <button class="btn ghost" id="reset-custom" type="button">恢复示例数据</button>
+      /* ---------- 结果区 ---------- */
+      .result { display: grid; gap: 16px; }
+      .result-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+      .result-head h2 { margin: 0; font-size: 20px; font-weight: 800; }
+      .result-head .hint { color: var(--muted); font-size: 13px; }
+
+      .picked { padding: 0; overflow: hidden; }
+      .picked-top {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 18px 20px; background: linear-gradient(135deg, #fff9ea 0%, #fff 62%); border-bottom: 1px solid var(--line);
+      }
+      .picked-top .kicker { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.6px; }
+      .picked-top .combo-name { font-size: 17px; font-weight: 800; margin-top: 2px; }
+      .pay { text-align: right; }
+      .pay .amount { font-size: 38px; font-weight: 800; color: var(--red); line-height: 1; }
+      .pay .amount small { font-size: 16px; font-weight: 700; }
+      .pay .under { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+
+      .items { padding: 6px 20px 2px; }
+      .item {
+        display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px;
+        align-items: center; padding: 12px 0; border-bottom: 1px dashed #eee;
+      }
+      .item:last-child { border-bottom: none; }
+      .item .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--yellow-soft); font-size: 17px; }
+      .item .name { font-weight: 700; }
+      .item .note { font-size: 12.5px; color: var(--muted); }
+      .item .note .est { color: #b07d00; font-weight: 600; }
+      .item .price { font-weight: 800; white-space: nowrap; }
+
+      .swap { padding: 0 20px 14px; }
+      .swap details { border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; background: #fcfcfc; }
+      .swap summary { cursor: pointer; padding: 10px 0; font-weight: 700; font-size: 13.5px; color: var(--red); list-style: none; }
+      .swap summary::-webkit-details-marker { display: none; }
+      .swap summary::after { content: " ▾"; }
+      .swap details[open] summary::after { content: " ▴"; }
+      .swap .rows { display: grid; gap: 10px; padding-bottom: 12px; }
+      .swap .row { display: grid; gap: 4px; }
+      .swap .row span { font-size: 12px; font-weight: 700; color: var(--muted); }
+      select {
+        width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 8px 10px;
+        font: inherit; font-size: 13.5px; background: #fff; color: var(--ink); outline: none;
+      }
+      select:focus { border-color: var(--red); }
+
+      .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+      .fact { background: #fff; padding: 12px 16px; }
+      .fact .k { font-size: 11.5px; color: var(--muted); font-weight: 700; letter-spacing: 0.4px; }
+      .fact .v { font-weight: 800; font-size: 16px; margin-top: 2px; }
+      .fact .v.red { color: var(--red); }
+      .fact .v.green { color: #0a8a3c; }
+
+      .alts { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+      .alt {
+        padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff;
+        text-align: left; font: inherit; color: inherit; cursor: pointer; transition: border-color 0.15s, transform 0.15s;
+      }
+      .alt:hover { border-color: var(--yellow); transform: translateY(-1px); }
+      .alt .lbl { font-size: 12px; font-weight: 800; color: var(--red); letter-spacing: 0.4px; }
+      .alt .txt { font-size: 13px; color: var(--ink-2); margin: 6px 0 10px; min-height: 38px; }
+      .alt .row { display: flex; align-items: baseline; justify-content: space-between; }
+      .alt .money { font-weight: 800; font-size: 17px; }
+      .alt .kc { font-size: 12px; color: var(--muted); }
+
+      .list { display: grid; gap: 8px; }
+      .coupon {
+        display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px;
+        border: 1px dashed #e2e2e2; background: #fffdf7; font-size: 13px;
+      }
+      .coupon.used { border-style: solid; border-color: var(--yellow); background: var(--yellow-soft); }
+      .coupon .nm { font-weight: 700; }
+      .coupon .dt { color: var(--muted); font-size: 12px; }
+      .coupon .flag { margin-left: auto; font-size: 11.5px; font-weight: 800; color: var(--red); white-space: nowrap; }
+
+      .notice { display: flex; gap: 8px; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed #eee; color: var(--ink-2); }
+      .notice:last-child { border-bottom: none; }
+      .notice .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted); flex: none; padding-top: 2px; }
+      .notice.warn .code { color: #b00016; }
+
+      .section-title { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: 0.8px; margin: 0 0 8px; }
+      .foot { border-top: 1px solid var(--line); margin-top: 20px; padding: 22px 0 60px; color: var(--muted); font-size: 12.5px; }
+      .banner { background: var(--yellow-soft); color: #7a5a00; font-size: 12.5px; padding: 8px 14px; border-radius: 999px; display: inline-block; margin-bottom: 12px; }
+      .empty { color: var(--muted); font-size: 13.5px; }
+      .skeleton { color: var(--muted); font-size: 13.5px; padding: 24px; }
+      .err { border-left: 3px solid var(--red); background: #fff5f5; padding: 12px 14px; border-radius: 8px; color: #8a0012; font-size: 13.5px; }
+      .hidden { display: none !important; }
+      textarea {
+        width: 100%; margin-top: 8px; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px;
+        font: 12.5px/1.5 ui-monospace, Menlo, monospace; outline: none; resize: vertical;
+      }
+      textarea:focus { border-color: var(--red); }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap">
+        <div class="brand">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <path fill="#FFBC0D" d="M78.6 10C68.8 10 62.6 18.9 60 29.9 57.4 18.9 51.2 10 41.4 10 33.2 10 28.8 19.3 28.8 31.6V90h15V31.6c0-5.2.8-10.4 3.4-10.4 4.2 0 7.6 12.5 7.6 28.1h10.4c0-15.6 3.4-28.1 7.6-28.1 2.6 0 3.4 5.2 3.4 10.4V90h15V31.6C91.2 19.3 86.8 10 78.6 10z"/>
+          </svg>
+          <span>麦麦吃什么</span>
         </div>
-      </details>
-    </section>
+        <div class="meta">麦当劳 MCP 组合器 · 在线 Demo</div>
+      </div>
+    </header>
 
-    <section class="card" id="result" aria-live="polite">
-      <h2>算出来的方案</h2>
-      <p class="muted">正在载入示例数据…</p>
-    </section>
-  </div>
+    <main class="wrap">
+      <section class="hero">
+        <h1>今天吃什么，<em>算</em>出来。</h1>
+        <p>
+          选好预算和口味，直接从门店在售的整张菜单里穷举组合，把券算进去，给出「点什么、用哪张券、实付多少、多少热量」。
+          套餐可以换单品，热量按官方数据累加。
+        </p>
+        <div class="stats" id="stats"></div>
+      </section>
 
-  <footer>
-    <a class="star" id="star" href="https://github.com/caob23/mcd-what-to-eat" target="_blank" rel="noopener">★ Star 这个项目</a>
-    <a href="https://github.com/caob23/mcd-what-to-eat#readme" target="_blank" rel="noopener">想接真实门店数据？看 README</a>
-    <span>本页无追踪、无登录、无需 Token</span>
-  </footer>
-</div>
-<script type="module" src="./app.js"></script>
-</body>
+      <div class="layout">
+        <aside class="panel">
+          <div class="card card-pad">
+            <div class="field">
+              <span class="label">门店</span>
+              <div class="stores" id="stores"></div>
+            </div>
+
+            <div class="field">
+              <div class="budget-head">
+                <span class="label" style="margin: 0">预算</span>
+                <span class="budget-value"><span id="budget-value">30</span><small>元</small></span>
+              </div>
+              <input type="range" id="budget" min="10" max="80" step="1" value="30" />
+              <div class="chips" id="budget-chips"></div>
+            </div>
+
+            <div class="field">
+              <span class="label">想吃得更</span>
+              <div class="goals" id="goals"></div>
+            </div>
+
+            <div class="field">
+              <span class="label">用券</span>
+              <div class="chips" id="coupon-modes"></div>
+            </div>
+
+            <div class="field">
+              <span class="label">必须包含</span>
+              <div class="chips" id="require"></div>
+            </div>
+
+            <div class="field">
+              <span class="label">忌口</span>
+              <input type="text" id="avoid" placeholder="例如：辣、牛、咖啡" autocomplete="off" />
+            </div>
+
+            <div class="field">
+              <span class="label">件数上限</span>
+              <div class="chips" id="max-items"></div>
+            </div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="switch">
+              <input type="checkbox" id="source-toggle" />
+              <label for="source-toggle">用我粘贴的菜单 JSON 算（纯本地）</label>
+            </div>
+            <textarea id="custom-json" class="hidden" rows="6" spellcheck="false"
+              placeholder='{"items":[{"id":"a","name":"巨无霸","price":24,"category":"main","kcal":513}],"coupons":[]}'></textarea>
+            <p class="empty" style="margin: 8px 0 0; font-size: 12px">
+              结构见 README：<code>items[].id/name/price/category</code>，可选 <code>kcal</code>。不填热量也能算。
+            </p>
+          </div>
+        </aside>
+
+        <section class="result" id="result" aria-live="polite">
+          <div class="card skeleton">正在计算…</div>
+        </section>
+      </div>
+
+      <footer class="foot">
+        <span class="banner" id="banner">示例门店菜单 + 官方热量（非实时）</span>
+        <p style="margin: 0 0 6px">
+          数据：真实门店菜单快照 + 官方热量（MCP <code>list-nutrition-foods</code>、官网营养计算器、套餐 <code>query-meal-detail</code> 子项累加）。
+          门店名与编码已脱敏，不含任何 Token。
+        </p>
+        <p style="margin: 0">
+          组合器与线上是同一份代码：<code>docs/core/combo-core.mjs</code> 是 <code>src/core/combo-core.mjs</code> 的同步副本，测试会断言两者逐字节一致。
+          源码：<a href="https://github.com/caob23/mcd-what-to-eat">github.com/caob23/mcd-what-to-eat</a>
+        </p>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
 </html>
