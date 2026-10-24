@@ -26,12 +26,16 @@ description: 用麦当劳 MCP 能力推荐「今天吃什么 + 怎么点最省�
 
 辅助工具：`campaign-calendar`（当月活动）、`available-coupons` / `auto-bind-coupons`（领券）、`query-my-coupons`（我的券）、`calculate-price`（含优惠算价，活动券算不出优惠时用它挂券试算）。
 
-问热量 / 「哪个更顶饱」时再加两个：
+问热量 / 「哪个更顶饱」时再加两个（外加一份**非 MCP** 的官方数据：官网[营养计算器](https://www.mcdonalds.com.cn/nutrition_calculator)，已抓成本地 `data/nutrition-calculator.json`，137 条，补麦咖啡/雪冰/早餐与杯型）：
 
 4. `list-nutrition-foods` —— 拿官方单品营养表（`name,null,kJ,kcal,...` 逐行），按商品名建索引。
 5. `query-meal-detail` —— 参数 `{"code":"<productCode>"}`（⚠️ 参数名是 `code`，不是 `productCode`），返回 `data.rounds[]` 子项构成。
 
 **套餐热量由子项累加得出**：每轮取 `isDefault=1` 的默认选项（`quantity>0` 时再取 `choices[0]`），逐个查营养表后相加（例：板烧鸡腿堡 391 + 中薯条 289 + 可乐中杯 147 = 827 kcal）。**任一子项查不到就整单记未知，不做部分累加**——只加查得到的会系统性低估套餐热量，比「未知」更误导人。
+
+热量按四级降级，**每一级都要跟用户交代来源**（`kcalSource`）：`mcp` / `calculator` = 官方数据；`composition` = 套餐子项累加；`estimate` = 同类推算，**必须显示成 `≈` 并说明依据**，不能和官方数据混着说。组合类（套餐/件套/随心/分享餐/四宫格…）一律不推算，查不到就说查不到。
+
+`query-meal-detail` 的 `rounds[].choices[]` 还带着**可换单品和差价**：「精选超值随心配」就是「蓝区选 1 + 粉区选 1」。用户说「换个 X」时，把选择传给 `planCombo` 的 `picks`（`{itemId: {roundIndex: "choiceCode"}}`），价格与热量会自动重算；换过的套餐会被钉在方案里，不会被优化器顺手换掉。
 
 ## 执行方式
 
@@ -53,6 +57,7 @@ node src/plan.mjs <城市> <预算> [地点关键词] [选项...]
 | `--optimize=` | `cost` / `calories` / `value` | 最省 / 最顶饱 / 每元热量最高，默认 `cost` |
 | `--no-coupon` | — | 等价 `couponMode:"off"`，会额外告诉你「最划算那张券本可省多少」 |
 | `--coupon=<id或券名>` | — | 只用指定的这张券，找不到会退回不用券并说明原因 |
+| `picks` | `{itemId: {roundIndex: choiceCode}}` | 套餐里已换好的单品（随心配换菜用这个），换过的套餐会被钉住 |
 | `excludeCoupons` | `id[]` | 临时排除某些券 |
 | `requireCategories` | `main`/`side`/`drink` 数组 | 必须包含的品类，凑不出时降级并说明 |
 | `maxItems` / `maxPerItem` | 整数 | 最多几件 / 同一商品最多几份（默认 4 / 2） |
@@ -92,6 +97,7 @@ node src/plan.mjs <城市> <预算> [地点关键词] [选项...]
 | `CALORIE_SUBSET` | 热量目标下只比较了有数据的那部分餐品 | 「只在 N 款有官方热量的餐品里比较」 |
 | `ITEM_NOT_LISTED` / `COUPON_EXPIRED` / `THRESHOLD_NOT_MET` | 券用不了 | 说清是哪一条，别暗示能用 |
 | `REQUIRE_UNSATISFIED` | 预算内凑不出必须含的品类 | 说清降级成了什么 |
+| `PIN_DROPPED` | 换过单品的套餐放不进预算 | 照实说「你换的那份这次没带上」，别假装还在 |
 
 需要自定义时按工具顺序手动调，再把数据整理成 `{ items, coupons }` 交给 `planCombo`，**不要手算**。
 
@@ -101,10 +107,10 @@ node src/plan.mjs <城市> <预算> [地点关键词] [选项...]
 
 ```json
 {
-  "items": [{ "id": "9900014838", "name": "巨无霸", "price": 24, "category": "main", "kcal": 497 }],
+  "items": [{ "id": "9900014838", "name": "巨无霸", "price": 24, "category": "main", "kcal": 513, "kcalSource": "calculator" }],
   "coupons": [{ "id": "c1", "name": "巨无霸免费兑换券", "type": "free_item", "target": "9900014838" }]
 }
 ```
 
-`category` 只认 `main` / `side` / `drink`；券的 `type` 只认 `free_item` / `percent_off` / `threshold_off`；`kcal` 拿不到就**不要填 0**，留 `null` / 不填，让它按「未知」处理。
+`category` 只认 `main` / `side` / `drink`；券的 `type` 只认 `free_item` / `percent_off` / `threshold_off`；`kcal` 拿不到就**不要填 0**，留 `null` / 不填，让它按「未知」处理。带 `combo.rounds` 的商品可以换单品（见 `src/core/combo-core.mjs` 的 `resolveCombo`）。
 

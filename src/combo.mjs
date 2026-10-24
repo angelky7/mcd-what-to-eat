@@ -4,6 +4,7 @@ import { planCombo } from "./core/combo-core.mjs";
 // 计算逻辑全部在 core（纯函数、浏览器可复用），这里只保留导出兼容与命令行入口。
 export { planCombo, CATEGORY_ORDER, OPTIMIZE_MODES, COUPON_MODES } from "./core/combo-core.mjs";
 export { bestCoupon, couponSaving, couponUnusableReason, OPTIMIZE_LABEL } from "./core/combo-core.mjs";
+export { resolveCombo, applyPicks } from "./core/combo-core.mjs";
 
 function parseArgs(argv) {
   const positional = [];

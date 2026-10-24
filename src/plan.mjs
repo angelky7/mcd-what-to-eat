@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
 import { McdMcpClient } from "./mcp.mjs";
 import { planCombo, CATEGORY_ORDER, OPTIMIZE_LABEL } from "./combo.mjs";
+import { asLookup, attachCalories, createResolver, KCAL_SOURCE, SOURCE_LABEL } from "./nutrition.mjs";
 
 // 餐品类型判定：以商品名为主信号，分类名兜底。
 // 实测菜单仅按分类名归类会出错，原因有三：
@@ -10,7 +12,7 @@ import { planCombo, CATEGORY_ORDER, OPTIMIZE_LABEL } from "./combo.mjs";
 //   2) 非餐品混在菜单里（丝巾 ¥34.9、水手帽 ¥48.8、毛绒周边、玩具袋、3 元蘸酱）；
 //   3) 分类名含换行（「小食甜品\n/其他」），且「小食拼盘/多人餐」「BFF四宫格」
 //     是双人分享餐而非小食，不能因「小食」二字塞进小食位。
-const MERCH = /丝巾|围巾|帽|毛绒|周边|玩偶|手办|盲盒|百宝袋|痒痒挠|按摩捶|餐具|吸管|打包|购物袋|徽章|贴纸|冰箱贴|杯套|酱$|酱料/;
+const MERCH = /丝巾|围巾|帽|毛绒|周边|玩偶|手办|盲盒|百宝袋|痒痒挠|按摩捶|餐具|吸管|打包|购物袋|徽章|贴纸|星愿贴|贴$|冰箱贴|杯套|酱$|酱料/;
 const SHARE = /拼盘|分享餐|双人餐|多人餐|四宫格|双拼|全家|桶/;
 const COMBO = /套餐|件套|随心|乐园餐/;
 const DRINK_ITEM =
@@ -275,45 +277,94 @@ const normalizeName = (value) =>
     .replace(/[（）()]/g, "")
     .replace(/™/g, "");
 
-// 按商品名精确匹配（归一化后），匹配不到就保持未知。
-// 不做前缀模糊匹配：套餐名包含单品名，但热量不是单品热量，糊上去就是编数据。
-export function attachCalories(items, table) {
-  if (!table?.size) return items;
-  const normalizedTable = new Map();
-  for (const [name, kcal] of table) normalizedTable.set(normalizeName(name), kcal);
-  return items.map((item) => {
-    const kcal = table.get(item.name) ?? normalizedTable.get(normalizeName(item.name));
-    return kcal ? { ...item, kcal } : item;
-  });
+// 热量解析统一在 src/nutrition.mjs：
+//   list-nutrition-foods（官方接口）→ 官网营养计算器 → 套餐子项累加 → 同类推算（明确标 ≈）。
+// 具体规则与「哪些情况宁可不给数字」都写在那个文件里。
+export { attachCalories, createResolver, KCAL_SOURCE, SOURCE_LABEL };
+
+// 官网营养计算器的快照（data/nutrition-calculator.json）。
+// 抓取脚本：node scripts/fetch-nutrition-calculator.mjs
+// 读不到就当作没有这份数据——不抛错，主流程继续用 MCP 营养表。
+let calculatorCache = null;
+export function loadCalculator() {
+  if (calculatorCache) return calculatorCache;
+  try {
+    const file = new URL("../data/nutrition-calculator.json", import.meta.url);
+    calculatorCache = JSON.parse(readFileSync(file, "utf8")).items ?? [];
+  } catch {
+    calculatorCache = [];
+  }
+  return calculatorCache;
 }
 
 // 套餐（三件套/四件套/随心选…）在营养表里查不到，但官方 query-meal-detail
 // 会返回套餐构成（rounds[]，每轮带默认选项）。把默认子项的热量按官方数据累加，
 // 就能得到套餐热量——仍然是官方数据，不是估算。任一子项查不到就整单记未知，不做部分累加。
-export function parseComposition(payload, table) {
+//
+// 同时把 rounds 原样带出来：像「精选超值随心配」就是「蓝区选 1 + 粉区选 1」，
+// 每一区都能换单品（换的话有差价），前端据此做「换一换」，不用再请求一次接口。
+const toNumber = (value) => {
+  if (value == null) return 0;
+  const n = Number(String(value).replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+
+export function parseComposition(payload, source) {
+  const lookup = asLookup(source);
+  // 子项查不到时按同形态推算（套餐子项不在菜单里，拿不到分类，只能按名字推）
+  const guessByName = typeof source?.estimateByName === "function" ? source.estimateByName : null;
   const rounds = payload?.data?.rounds ?? [];
-  if (!rounds.length) return { kcal: null, parts: [], unknown: ["套餐构成为空"] };
-  const normalizedTable = new Map();
-  for (const [name, kcal] of table ?? []) normalizedTable.set(normalizeName(name), kcal);
-  const lookup = (name) => table?.get(name) ?? normalizedTable.get(normalizeName(name));
+  if (!rounds.length) return { kcal: null, parts: [], unknown: ["套餐构成为空"], estimated: [], rounds: [] };
 
   const parts = [];
   const unknown = [];
+  const estimated = [];
+  const detailRounds = [];
   let kcal = 0;
   for (const round of rounds) {
     const choices = round.choices ?? [];
     const chosen = choices.find((c) => c.isDefault === 1) ?? choices.find((c) => (c.quantity ?? 0) > 0) ?? choices[0];
+    const mapped = choices.map((choice) => {
+      const value = lookup(choice.name);
+      const guess = Number.isFinite(value) ? null : guessByName?.(choice.name);
+      return {
+        code: String(choice.code ?? ""),
+        name: choice.name,
+        diffPrice: toNumber(choice.diffPrice),
+        isDefault: choice.isDefault === 1,
+        ...(Number.isFinite(value) ? { kcal: Math.round(value) } : {}),
+        ...(!Number.isFinite(value) && guess ? { kcal: guess.kcal, estimated: true } : {}),
+      };
+    });
+    detailRounds.push({
+      name: round.name ?? "选配",
+      quantity: Number(round.quantity) || 1,
+      minQuantity: Number(round.minQuantity) || 0,
+      maxQuantity: Number(round.maxQuantity) || 1,
+      choices: mapped,
+      picked: chosen?.code ? String(chosen.code) : null,
+    });
+
     if (!chosen?.name) {
       unknown.push(round.name ?? "未知分组");
       continue;
     }
     const qty = Number(chosen.quantity) || 1;
-    parts.push({ name: chosen.name, qty });
+    parts.push({ name: chosen.name, code: String(chosen.code ?? ""), qty });
     const value = lookup(chosen.name);
-    if (Number.isFinite(value)) kcal += value * qty;
-    else unknown.push(chosen.name);
+    if (Number.isFinite(value)) {
+      kcal += value * qty;
+      continue;
+    }
+    const guess = guessByName?.(chosen.name);
+    if (guess) {
+      kcal += guess.kcal * qty;
+      estimated.push(chosen.name);
+    } else {
+      unknown.push(chosen.name);
+    }
   }
-  return { kcal: unknown.length ? null : round2(kcal), parts, unknown };
+  return { kcal: unknown.length ? null : round2(kcal), parts, unknown, estimated, rounds: detailRounds };
 }
 
 const COMBO_NAME = /套餐|件套|随心|拼乐|组合|精选|任选/;
@@ -321,14 +372,18 @@ const COMBO_NAME = /套餐|件套|随心|拼乐|组合|精选|任选/;
 // 只给「查不到热量、且可能被选中」的商品补构成明细（每分类前 perCategory 个），
 // 不按名称白名单硬筛：像「牛肉堡单品精选」这种不带套餐字样的商品，
 // 官方详情里同样是「选择汉堡 → 默认 汉堡包」的构成，累加才是正确热量。
+// 带选配轮次的商品（随心配、含规格的饮料）把 rounds 一并带出来，供前端「换一换」。
 // 单次运行最多 limit 次调用、并发 concurrency，失败静默降级为未知。
-export async function enrichCalories(client, base, items, table, { prefer = () => false, perCategory = 8, limit = 24, concurrency = 6, ids = null } = {}) {
-  if (!table?.size) return { items, calls: 0, resolved: 0 };
+export async function enrichCalories(client, base, items, source, { prefer = () => false, perCategory = 8, limit = 24, concurrency = 6, ids = null, force = false } = {}) {
+  // 连一份热量参照都没有时，子项累加也加不出数字，直接跳过所有网络请求
+  if (source instanceof Map && !source.size && !force) return { items, calls: 0, resolved: 0 };
 
   const targets = [];
   if (ids?.length) {
     // 精准补全：只查指定的这几个商品（用于给最终推荐的组合补热量）
     targets.push(...items.filter((item) => ids.includes(item.id) && !Number.isFinite(item.kcal)));
+  } else if (force) {
+    targets.push(...items);
   } else {
     for (const category of CATEGORY_ORDER) {
       const pool = items
@@ -352,8 +407,8 @@ export async function enrichCalories(client, base, items, table, { prefer = () =
       const item = queue[cursor++];
       try {
         const payload = extractJson(textPart(await client.callTool("query-meal-detail", { ...base, code: item.id })));
-        const composition = parseComposition(payload, table);
-        if (Number.isFinite(composition.kcal)) result.set(item.id, composition);
+        const composition = parseComposition(payload, source);
+        if (composition.rounds.length || Number.isFinite(composition.kcal)) result.set(item.id, composition);
       } catch {
         // 查不到就当未知，不影响主流程
       }
@@ -364,7 +419,20 @@ export async function enrichCalories(client, base, items, table, { prefer = () =
   return {
     items: items.map((item) => {
       const composition = result.get(item.id);
-      return composition ? { ...item, kcal: composition.kcal, kcalParts: composition.parts } : item;
+      if (!composition) return item;
+      const patch = {};
+      // 套餐构成算出来的热量比「名字匹配」更贴近实际（还能区分大杯/中杯），优先采信
+      if (Number.isFinite(composition.kcal)) {
+        const guessy = composition.estimated?.length > 0;
+        patch.kcal = composition.kcal;
+        patch.kcalSource = guessy ? KCAL_SOURCE.ESTIMATE : KCAL_SOURCE.COMPOSITION;
+        patch.kcalParts = composition.parts;
+        if (guessy) patch.kcalLabel = `套餐构成累加（其中 ${composition.estimated.length} 项按同类推算）`;
+      }
+      if (composition.rounds.length && composition.rounds.some((round) => round.choices.length > 1)) {
+        patch.combo = { rounds: composition.rounds };
+      }
+      return Object.keys(patch).length ? { ...item, ...patch } : item;
     }),
     calls: queue.length,
     resolved: result.size,
@@ -446,16 +514,18 @@ export async function plan({
   const menuRaw = await client.callTool("query-meals", base);
   let items = normalizeMenu(extractJson(textPart(menuRaw)));
 
-  // 热量走官方 list-nutrition-foods（无入参）。拿不到就当没有热量数据，不用估算值顶替。
+  // 热量两个官方源合起来用：list-nutrition-foods（接口）+ 官网营养计算器（网页内嵌数据）。
+  // 都拿不到才降级为「未知」，不用估算值顶替；单品实在查不到才按同类推算并标 ≈。
   let nutrition = new Map();
   try {
     nutrition = parseNutrition(extractJson(textPart(await client.callTool("list-nutrition-foods", {}))));
   } catch {
     nutrition = new Map();
   }
-  items = attachCalories(filterAvoid(items, avoid), nutrition);
+  const resolver = createResolver({ mcpTable: nutrition, calculator: loadCalculator() });
+  items = attachCalories(filterAvoid(items, avoid), resolver);
   // 套餐热量 = 官方套餐构成里默认子项的热量之和（任一子项查不到就整单记未知）
-  const enriched = await enrichCalories(client, base, items, nutrition, { prefer: (item) => PREFERRED.test(item.name) });
+  const enriched = await enrichCalories(client, base, items, resolver, { prefer: (item) => PREFERRED.test(item.name) });
   items = enriched.items;
 
   let coupons = [];
@@ -487,7 +557,7 @@ export async function plan({
   // 保证「热量」行说的是这份组合的真实值，而不是「未知」。
   const unknownInCombo = combo.items.filter((item) => !Number.isFinite(item.kcal)).map((item) => item.id);
   if (unknownInCombo.length) {
-    const patch = await enrichCalories(client, base, items, nutrition, { ids: unknownInCombo });
+    const patch = await enrichCalories(client, base, items, resolver, { ids: unknownInCombo });
     if (patch.resolved) {
       items = patch.items;
       combo = buildCombo();

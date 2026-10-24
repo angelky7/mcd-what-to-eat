@@ -93,22 +93,41 @@ calculate-price（可选）──► 活动券本地算不出优惠时挂券试�
 
 ## 热量数据的取法
 
-热量**不落本地表**，全部来自 MCP：
+热量是**四级来源**（`src/nutrition.mjs`，每个餐品都带 `kcalSource` 告诉用户这数字哪来的），不编造、不静默兜底：
 
-1. `list-nutrition-foods` 返回逐行文本 `名称,null,kJ,kcal,...`，`parseNutrition()` 解析成 `Map<名称, kcal>`；
-2. 菜单项按**商品名**反查（官方表用单品名，所以只有 17–24% 的菜单项能直接命中）；
-3. **套餐没有独立热量条目，用 `query-meal-detail` 的 `rounds[]` 子项累加**：
+| 级别 | `kcalSource` | 数据来源 | 覆盖面（实测） |
+| --- | --- | --- | --- |
+| 1 | `mcp` | MCP `list-nutrition-foods`（`名称,null,kJ,kcal,...` → `parseNutrition()`） | 约 8–17% |
+| 2 | `calculator` | 官网营养计算器 <https://www.mcdonalds.com.cn/nutrition_calculator> 的 `raw_data`（137 条，`kcal = kJ/4.184`），由 `npm run nutrition:fetch` 落到 `data/nutrition-calculator.json` | 约 20–27% |
+| 3 | `composition` | `query-meal-detail` 的 `rounds[]` 子项热量累加 | 约 22–28% |
+| 4 | `estimate` | 同名同形态 + 同品类中位数推算，页面标 `≈` | 约 32–38% |
+| — | `definition` | 瓶装水按定义记 0（纯悦 / 饮用水 / 矿泉水） | 少量 |
+
+要点：
+
+1. **菜单名比营养表粗**（`薯条` vs `中薯条`），所以要先做规格对齐：`splitSize()` 拆出「迷你/小/中/大 + 杯/份/个」，再按「显式规格 → `1个`/`1份` 分量条目 → 中/小默认」的顺序挑变体（`pickVariant`）；别名表覆盖 `可乐→可口可乐`、`麦旋风→奥利奥麦旋风` 这类简称；
+2. **套餐没有独立热量条目，用 `rounds[]` 子项累加**：
 
 ```
-query-meal-detail {"code":"<精选单人餐三件套>"}
+query-meal-detail {"code":"<精选单人餐三件套>", storeCode, beType, orderType}
   → data.rounds[]：每轮取 isDefault===1 的默认项，quantity>0 时再取 choices[0]
   → 板烧鸡腿堡 391 + 中薯条 289 + 可乐中杯 147 = 827 kcal
 ```
 
-4. **任一子项查不到就整单记 `null`**，不做部分累加——部分累加会系统性低估套餐热量，比「未知」更容易误导用户（`test/plan.test.mjs` 里有对应用例锁住这个行为）；
-5. 主流程对**最终选中的组合**会做一次定向补查（`enrichCalories(client, base, items, table, { ids })`），把「N 件热量未知」尽量压到 0，避免因为「选组合时还没查」而白白丢掉热量。
+   ⚠️ 不传 `storeCode` 时线上会返回 `storeCode门店编码不能为空` 且 `rounds=[]`，看起来像「这个套餐没有构成」——其实只是没查成；
+3. **任一子项查不到就整单记 `null`**，不做部分累加——部分累加会系统性低估套餐热量，比「未知」更容易误导用户（`test/plan.test.mjs` 里有对应用例锁住这个行为）；
+4. **推算不越界**：名字里带 `套餐 / 随心配 / 分享餐 / 桶 / 拼盘 / 任选` 的直接拒绝推算，宁可返回未知也不给一个假数字；0 kJ 的条目（无糖可乐）是真实 0，不能被当成「查不到」；
+5. 主流程对**最终选中的组合**会做一次定向补查（`enrichCalories(client, base, items, resolver, { ids })`），把「N 件热量未知」尽量压到 0。
 
-热量类目标（`calories` / `value`）只在有热量的餐品子集里比较，并输出 `CALORIE_SUBSET` 说明——把未知当 0 会让优化系统性偏向恰好有数据的商品。
+热量类目标（`calories` / `value`）只在有热量的餐品子集里比较，并输出 `CALORIE_SUBSET` 说明——把未知当 0 会让优化系统性偏向恰好有数据的商品；`estimate` 级别的餐品**不参与**热量目标的排序，避免用推算值当锚点。
+
+## 套餐换单品（随心配）
+
+`query-meal-detail` 的 `rounds[].choices[]` 每项带 `code / name / diffPrice / isDefault / supportModify`，所以「随心配换一个单品」是纯本地计算：
+
+- `resolveCombo(item, picks)`：`price = item.price - Σ默认项diffPrice + Σ选中项diffPrice`，`kcal = Σ选中项kcal`；
+- 选中组合与默认不一致、且新选中的任一单品没有热量 → 整单 `kcal = undefined`（不复用旧总热量，避免换完还显示换前的数）；
+- 换过的套餐会被 `pinItems` 钉住，优化器不会为了凑价把它换成别的商品；预算实在放不下时退回普通方案并给 `PIN_DROPPED`。
 
 ## 输出原因码
 
@@ -127,6 +146,7 @@ query-meal-detail {"code":"<精选单人餐三件套>"}
 | `CHEAPER_WITHOUT_COUPON` | 不用券方案更便宜：`cost` 目标下会**直接改用**不用券方案并说明原因；热量类目标下仅提示件数差异 |
 | `CALORIE_SUBSET` | 热量目标下只在有官方热量的子集里比较 |
 | `REQUIRE_UNSATISFIED` | 预算内凑不出「必须含某品类」 |
+| `PIN_DROPPED` | 换过单品的套餐被预算挤掉，已退回未换的方案 |
 | `SANITY_NO_STAPLE` / `SANITY_REPEAT_DOMINANT` | 组合没有主食 / 单一商品占了本单金额一半以上 |
 | `NETWORK_ERROR` | 试算时接口失败，已降级为不含该券的结果 |
 

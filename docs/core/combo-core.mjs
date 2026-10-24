@@ -74,7 +74,7 @@ export function couponUnusableReason(coupon, menu, subtotal, today = null) {
   return null;
 }
 
-function candidatePool(menu, category, prefer, couponTargets) {
+function candidatePool(menu, category, prefer, couponTargets, pinSet) {
   const pool = menu.filter((item) => item.category === category && Number.isFinite(item.price) && item.price > 0);
   if (!pool.length) return [];
   pool.sort(
@@ -90,6 +90,10 @@ function candidatePool(menu, category, prefer, couponTargets) {
   // 券指定的商品必须进候选，否则「有券却选不到那个菜」
   for (const item of pool) {
     if (couponTargets.has(item.id) && !picked.includes(item)) picked.push(item);
+  }
+  // 用户自己换过单品的套餐必须留在候选里，否则一换就被优化器换掉别的东西
+  for (const item of pool) {
+    if (pinSet?.has(item.id) && !picked.includes(item)) picked.push(item);
   }
   return picked;
 }
@@ -140,16 +144,20 @@ function better(next, current, optimize, prefer) {
 }
 
 // 在给定券集合与预算下搜索最优组合。optimize 决定取舍函数，其余约束一视同仁。
-function search(menu, coupons, limit, { prefer, optimize, maxItems, maxPerItem, requireCategories = [] }) {
+function search(menu, coupons, limit, { prefer, optimize, maxItems, maxPerItem, requireCategories = [], pinItems = [] }) {
   const couponTargets = new Set(
     coupons.filter((c) => c.type === "free_item" && c.target && c.remaining !== 0).map((c) => c.target),
   );
+  const pinSet = new Set(pinItems.map(String));
+  const pinned = [
+    ...new Set(pinItems.map(String).filter((id) => menu.some((item) => String(item.id) === id))),
+  ];
   const categories = CATEGORY_ORDER.filter((category) =>
     menu.some((item) => item.category === category && Number.isFinite(item.price) && item.price > 0),
   );
   if (!categories.length) throw new Error("菜单为空，无法组合");
 
-  const pools = categories.map((category) => candidatePool(menu, category, prefer, couponTargets));
+  const pools = categories.map((category) => candidatePool(menu, category, prefer, couponTargets, pinSet));
   const qtyOptions = [];
   for (let q = 1; q <= Math.max(1, Math.min(maxPerItem, maxItems)); q++) qtyOptions.push(q);
   const slots = pools.map((pool) => {
@@ -183,22 +191,32 @@ function search(menu, coupons, limit, { prefer, optimize, maxItems, maxPerItem, 
   };
 
   let chosen = null;
-  for (const prefix of categoryPrefixes(categories)) {
-    // 必须包含的分类不能靠截短前缀来绕过：不满足就换下一个更短/更长的前缀
-    if (requireCategories.some((category) => !prefix.includes(category))) continue;
-    const slotsForPrefix = slots.slice(0, prefix.length);
-    let bestInPrefix = null;
-    for (const combo of product(slotsForPrefix)) {
-      const candidate = evaluate(combo);
-      if (candidate.units > maxItems) continue;
-      if (candidate.total > limit) continue;
-      if (better(candidate, bestInPrefix, optimize, prefer)) bestInPrefix = candidate;
+  const hasAllPinned = (items) => pinned.every((id) => items.some((item) => String(item.id) === id));
+  const pick = (requirePinned) => {
+    for (const prefix of categoryPrefixes(categories)) {
+      // 必须包含的分类不能靠截短前缀来绕过：不满足就换下一个更短/更长的前缀
+      if (requireCategories.some((category) => !prefix.includes(category))) continue;
+      const slotsForPrefix = slots.slice(0, prefix.length);
+      let bestInPrefix = null;
+      for (const combo of product(slotsForPrefix)) {
+        if (requirePinned && !hasAllPinned(combo)) continue;
+        const candidate = evaluate(combo);
+        if (candidate.units > maxItems) continue;
+        if (candidate.total > limit) continue;
+        if (better(candidate, bestInPrefix, optimize, prefer)) bestInPrefix = candidate;
+      }
+      if (bestInPrefix) return bestInPrefix;
     }
-    if (bestInPrefix) {
-      chosen = bestInPrefix;
-      break;
-    }
+    return null;
+  };
+
+  // 用户手动换过单品的套餐优先留在方案里；确实放不下（预算不够/件数超限）再退回普通搜索
+  chosen = pick(true);
+  if (!chosen && pinned.length) {
+    chosen = pick(false);
+    if (chosen) chosen.pinDropped = pinned;
   }
+  if (!chosen) chosen = pick(false);
 
   // 没有任何前缀能塞进预算：保留最便宜的主食，标记超预算
   if (!chosen) {
@@ -220,6 +238,12 @@ function mergeItems(items) {
     }
     const copy = { id: item.id, name: item.name, price: item.price, category: item.category, qty: item.qty };
     if (Number.isFinite(item.kcal)) copy.kcal = item.kcal;
+    // 热量来源要带出去：界面上估算值必须显示成「≈」，不能和官方数据长得一样
+    if (item.kcalSource) copy.kcalSource = item.kcalSource;
+    if (item.kcalLabel) copy.kcalLabel = item.kcalLabel;
+    if (item.kcalAssume) copy.kcalAssume = item.kcalAssume;
+    // 可选配的套餐（随心配、三件套…）带上轮次，界面才能「换一换」
+    if (item.combo?.rounds?.length) copy.combo = item.combo;
     index.set(key, copy);
     out.push(copy);
   }
@@ -289,9 +313,78 @@ function buildAlternatives(menu, coupons, limit, opts, chosen, optimize) {
 }
 
 /**
+ * 「随心配」这类套餐是可以换单品的：官方 query-meal-detail 给出 rounds[]，
+ * 每一轮都是一组可换的选项，换的时候按 diffPrice 补差价。
+ *
+ * 把某一套选择折算成「这份套餐实际多少钱、多少热量」，供界面「换一换」直接重算。
+ * 热量只在**每一轮都查得到**时才给数字——有一项查不到就沿用 item.kcal（可能是未知），
+ * 不做部分累加。
+ *
+ * @param {object} item 带 combo.rounds 的商品
+ * @param {Object<string|number, string>} pickMap 轮次下标或轮次名 → 选项 code
+ */
+export function resolveCombo(item, pickMap = {}) {
+  const rounds = item.combo?.rounds ?? [];
+  if (!rounds.length) return { price: item.price, kcal: item.kcal, picks: {}, parts: [], resolved: Number.isFinite(item.kcal) };
+
+  const defaultDiff = rounds.reduce((sum, round) => {
+    const def = round.choices.find((choice) => choice.isDefault) ?? round.choices[0];
+    return sum + (Number(def?.diffPrice) || 0);
+  }, 0);
+  // 菜单上的 price 已经包含默认选择，所以差价要从「默认组合」这个基准算起
+  let price = (Number(item.price) || 0) - defaultDiff;
+  let kcal = 0;
+  let complete = true;
+  const picks = {};
+  const parts = [];
+  let isDefaultSelection = true;
+
+  rounds.forEach((round, index) => {
+    const wanted = pickMap[index] ?? pickMap[round.name] ?? round.picked;
+    const choice =
+      round.choices.find((candidate) => candidate.code === wanted) ??
+      round.choices.find((candidate) => candidate.isDefault) ??
+      round.choices[0];
+    if (!choice) {
+      complete = false;
+      return;
+    }
+    const fallback = round.choices.find((candidate) => candidate.isDefault) ?? round.choices[0];
+    if (fallback && choice.code !== fallback.code) isDefaultSelection = false;
+    picks[index] = choice.code;
+    parts.push({ name: choice.name, qty: 1 });
+    price += Number(choice.diffPrice) || 0;
+    if (Number.isFinite(choice.kcal)) kcal += choice.kcal;
+    else complete = false;
+  });
+
+  return {
+    price: round2(price),
+    // 换了单品就算不全：不能用旧的合计冒充新选择的热量（换成一个查不到热量的商品时尤其明显）。
+    // 只有「选的和默认完全一样」才允许沿用原有数字。
+    kcal: complete ? Math.round(kcal) : isDefaultSelection ? item.kcal : undefined,
+    picks,
+    parts,
+    resolved: complete,
+  };
+}
+
+/** 把「换单品」的选择应用到整张菜单上（价格与热量都跟着变） */
+export function applyPicks(menu, picks = {}) {
+  if (!picks || !Object.keys(picks).length) return menu;
+  return menu.map((item) => {
+    if (!item.combo?.rounds?.length) return item;
+    const chosen = picks[item.id];
+    if (!chosen) return item;
+    const { price, kcal, picks: resolvedPicks } = resolveCombo(item, chosen);
+    return { ...item, price, kcal, combo: { ...item.combo, picked: resolvedPicks } };
+  });
+}
+
+/**
  * 计算点餐组合。
  *
- * @param {Array} menu 菜单项 {id,name,price,category,kcal?}
+ * @param {Array} menu 菜单项 {id,name,price,category,kcal?,combo?}
  * @param {Array} coupons 券 {id,name,type,target?,percent?,minSpend?,amount?,validUntil?,remaining?}
  * @param {number} budget 预算（Infinity 表示不限）
  * @param {object} options
@@ -300,12 +393,14 @@ function buildAlternatives(menu, coupons, limit, opts, chosen, optimize) {
  *   couponMode: auto | off | pick     用券模式，默认 auto
  *   couponId: pick 模式下指定券的 ID 或名称
  *   excludeCoupons: string[]          排除的券 ID
+ *   picks: {itemId: {roundIndex: code}} 套餐内已换好的单品
  *   maxItems: number                 总件数上限，默认 4
  *   maxPerItem: number               单商品份数上限，默认 2
  *   today: "YYYY-MM-DD"              判断过期的基准日（不传则不判过期）
  */
 export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
   const limit = Number.isFinite(budget) ? budget : Infinity;
+  menu = applyPicks(menu, options.picks);
   const prefer = options.prefer ?? (() => false);
   const optimize = OPTIMIZE_MODES.includes(options.optimize) ? options.optimize : "cost";
   const couponMode = COUPON_MODES.includes(options.couponMode) ? options.couponMode : "auto";
@@ -314,7 +409,8 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
   const maxPerItem = positiveInt(options.maxPerItem, DEFAULT_MAX_PER_ITEM);
   const today = options.today ?? null;
   const requireCategories = (options.requireCategories ?? []).filter((category) => CATEGORY_ORDER.includes(category));
-  const searchOptions = { prefer, optimize, maxItems, maxPerItem, requireCategories };
+  const pinItems = options.pinItems ?? Object.keys(options.picks ?? {});
+  const searchOptions = { prefer, optimize, maxItems, maxPerItem, requireCategories, pinItems };
 
   const notices = [];
   const usable = coupons.filter((coupon) => !exclude.has(coupon.id) && coupon.remaining !== 0);
@@ -339,14 +435,18 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
     }
   }
 
-  // 热量类目标只能比较「有官方热量」的商品：官方营养表用单品名，
-  // 而菜单大头是套餐/精选/随心选（实测只有 17~24% 能被匹配）。
-  // 把未知当 0 会让优化系统性偏向恰好有数据的商品，等于给错建议，
-  // 所以显式收缩候选集，并把「只在子集里优化」写进输出。
+  // 热量类目标只能比较「有可信热量」的商品：官方数据（营养表/官网计算器/套餐子项累加）。
+  // 「同类推算」的粗估值不参与排序——拿估算值去比「谁更顶饱」，等于用假精度换结论。
   let candidateMenu = menu;
   if (optimize !== "cost") {
     const label = OPTIMIZE_LABEL[optimize];
-    const measurable = menu.filter((item) => Number.isFinite(item.kcal) && Number.isFinite(item.price) && item.price > 0);
+    const measurable = menu.filter(
+      (item) =>
+        Number.isFinite(item.kcal) &&
+        Number.isFinite(item.price) &&
+        item.price > 0 &&
+        item.kcalSource !== "estimate",
+    );
     const measurableMains = measurable.filter((item) => item.category === "main").length;
     if (measurable.length < 3 || measurableMains < 1) {
       throw new Error(
@@ -355,7 +455,7 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
     }
     notices.push({
       code: "CALORIE_SUBSET",
-      message: `「${label}」只比较有官方热量的 ${measurable.length} 款餐品，其余商品热量未知、不参与比较`,
+      message: `「${label}」只比较有官方热量的 ${measurable.length} 款餐品，其余商品热量未知或为估算、不参与比较`,
     });
     candidateMenu = measurable;
   }
@@ -365,6 +465,12 @@ export function planCombo(menu, coupons = [], budget = Infinity, options = {}) {
     notices.push({
       code: "REQUIRE_UNSATISFIED",
       message: `预算 ¥${limit} 内凑不出「必须含 ${requireCategories.map((category) => CATEGORY_LABEL[category]).join("、")}」的组合，已改为只给最便宜的主食`,
+    });
+  }
+  if (chosen.pinDropped?.length) {
+    notices.push({
+      code: "PIN_DROPPED",
+      message: `你换过单品的套餐在 ¥${limit} 预算 / ${maxItems} 件内放不下，这次没带上它`,
     });
   }
   if (chosen.infeasible && candidateMenu !== menu) {

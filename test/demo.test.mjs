@@ -36,6 +36,41 @@ test("Demo 数据可用，且不含券码等敏感字段", async () => {
   }
 });
 
+test("示例门店是北京与上海，不放佛山的店", async () => {
+  const data = JSON.parse(await readText("../docs/data/stores.json"));
+  for (const store of data.stores) {
+    assert.ok(!/佛山/.test(store.label), `${store.label} 还是佛山的店`);
+    assert.match(store.label, /北京|上海|广州|深圳|杭州/, "示例门店应该是常见的一线城市");
+  }
+});
+
+test("演示数据里带官方热量来源标记，估算值不会被当成官方数据", async () => {
+  const data = JSON.parse(await readText("../docs/data/stores.json"));
+  const allowed = new Set(["mcp", "calculator", "composition", "definition", "estimate"]);
+  for (const store of data.stores) {
+    const measured = store.menu.filter((item) => Number.isFinite(item.kcal));
+    assert.ok(measured.length > store.menu.length * 0.8, `${store.id} 有热量的商品太少`);
+    for (const item of measured) {
+      assert.ok(allowed.has(item.kcalSource), `${item.name} 的热量来源非法：${item.kcalSource}`);
+    }
+    // 官方来源（不含 estimate）要占到大头
+    const official = measured.filter((item) => item.kcalSource !== "estimate").length;
+    assert.ok(official >= measured.length * 0.5, `${store.id} 官方热量的比例太低`);
+  }
+});
+
+test("随心配这类套餐在演示数据里带可选轮次，且能换", async () => {
+  const data = JSON.parse(await readText("../docs/data/stores.json"));
+  const withCombo = data.stores.flatMap((store) => store.menu).filter((item) => item.combo?.rounds?.length);
+  assert.ok(withCombo.length > 5, "应该有多个可换单品的套餐");
+  const suixinpei = withCombo.find((item) => /随心配/.test(item.name));
+  assert.ok(suixinpei, "示例数据里应该有随心配");
+  for (const round of suixinpei.combo.rounds) {
+    assert.ok(round.choices.length > 1, `${round.name} 只有一个选项，换不了`);
+    assert.ok(round.picked, `${round.name} 缺默认选择`);
+  }
+});
+
 test("每种优化目标都能在演示数据上算出方案", async () => {
   const data = JSON.parse(await readText("../docs/data/stores.json"));
   for (const store of data.stores) {

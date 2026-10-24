@@ -1,0 +1,1103 @@
+{
+ "fetchedAt": "2026-10-24",
+ "source": "https://www.mcdonalds.com.cn/nutrition_calculator",
+ "note": "麦当劳中国官网「营养计算器」内嵌数据；kcal 由官方千焦值除以 4.184 后四舍五入，与官网页面显示口径一致。",
+ "items": [
+  {
+   "name": "巨无霸",
+   "variant": "1个",
+   "portion": 220,
+   "kj": 2146,
+   "kcal": 513,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "汉堡包",
+   "variant": "1个",
+   "portion": 104,
+   "kj": 1039,
+   "kcal": 248,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "麦辣鸡腿汉堡",
+   "variant": "1个",
+   "portion": 208,
+   "kj": 2029,
+   "kcal": 485,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "板烧鸡腿堡",
+   "variant": "1个",
+   "portion": 192,
+   "kj": 1638,
+   "kcal": 391,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "麦香鸡",
+   "variant": "1个",
+   "portion": 163,
+   "kj": 1546,
+   "kcal": 370,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "麦香鱼",
+   "variant": "1个",
+   "portion": 140,
+   "kj": 1359,
+   "kcal": 325,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "吉士汉堡包",
+   "variant": "1个",
+   "portion": 118,
+   "kj": 1231,
+   "kcal": 294,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "双层吉士汉堡",
+   "variant": "1个",
+   "portion": 168,
+   "kj": 1796,
+   "kcal": 429,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "不素之霸双层牛堡",
+   "variant": "1个",
+   "portion": 177,
+   "kj": 2062,
+   "kcal": 493,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "双层深海鳕鱼堡",
+   "variant": "1个",
+   "portion": 209,
+   "kj": 2029,
+   "kcal": 485,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "培根安格斯厚牛堡",
+   "variant": "1个",
+   "portion": 216,
+   "kj": 2959,
+   "kcal": 707,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "芝士安格斯厚牛堡",
+   "variant": "1个",
+   "portion": 218,
+   "kj": 2914,
+   "kcal": 696,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "培根蔬萃双层牛堡",
+   "variant": "1个",
+   "portion": 184,
+   "kj": 1850,
+   "kcal": 442,
+   "category": "汉堡和卷"
+  },
+  {
+   "name": "可口可乐",
+   "variant": "小",
+   "portion": 326,
+   "kj": 446,
+   "kcal": 107,
+   "category": "饮品"
+  },
+  {
+   "name": "可口可乐",
+   "variant": "中",
+   "portion": 443,
+   "kj": 616,
+   "kcal": 147,
+   "category": "饮品"
+  },
+  {
+   "name": "可口可乐",
+   "variant": "大",
+   "portion": 642,
+   "kj": 936,
+   "kcal": 224,
+   "category": "饮品"
+  },
+  {
+   "name": "无糖可口可乐",
+   "variant": "小",
+   "portion": 326,
+   "kj": 0,
+   "kcal": 0,
+   "category": "饮品"
+  },
+  {
+   "name": "无糖可口可乐",
+   "variant": "中",
+   "portion": 443,
+   "kj": 0,
+   "kcal": 0,
+   "category": "饮品"
+  },
+  {
+   "name": "无糖可口可乐",
+   "variant": "大",
+   "portion": 642,
+   "kj": 0,
+   "kcal": 0,
+   "category": "饮品"
+  },
+  {
+   "name": "阳光柠檬红茶",
+   "variant": "小",
+   "portion": 249,
+   "kj": 354,
+   "kcal": 85,
+   "category": "饮品"
+  },
+  {
+   "name": "阳光柠檬红茶",
+   "variant": "中",
+   "portion": 244,
+   "kj": 488,
+   "kcal": 117,
+   "category": "饮品"
+  },
+  {
+   "name": "阳光柠檬红茶",
+   "variant": "大",
+   "portion": 523,
+   "kj": 743,
+   "kcal": 178,
+   "category": "饮品"
+  },
+  {
+   "name": "雪碧",
+   "variant": "小",
+   "portion": 326,
+   "kj": 319,
+   "kcal": 76,
+   "category": "饮品"
+  },
+  {
+   "name": "雪碧",
+   "variant": "中",
+   "portion": 443,
+   "kj": 440,
+   "kcal": 105,
+   "category": "饮品"
+  },
+  {
+   "name": "雪碧",
+   "variant": "大",
+   "portion": 642,
+   "kj": 669,
+   "kcal": 160,
+   "category": "饮品"
+  },
+  {
+   "name": "怡泉+C",
+   "variant": "中",
+   "portion": 443,
+   "kj": 461,
+   "kcal": 110,
+   "category": "饮品"
+  },
+  {
+   "name": "怡泉+C",
+   "variant": "大",
+   "portion": 642,
+   "kj": 701,
+   "kcal": 168,
+   "category": "饮品"
+  },
+  {
+   "name": "阳光橙麦炫酷",
+   "variant": "默认",
+   "portion": 486,
+   "kj": 955,
+   "kcal": 228,
+   "category": "饮品"
+  },
+  {
+   "name": "【美汁源】“黄金橙橙”",
+   "variant": "中",
+   "portion": 443,
+   "kj": 691,
+   "kcal": 165,
+   "category": "饮品"
+  },
+  {
+   "name": "100%苹果汁",
+   "variant": "1盒",
+   "portion": 200,
+   "kj": 368,
+   "kcal": 88,
+   "category": "饮品"
+  },
+  {
+   "name": "优品豆浆",
+   "variant": "小",
+   "portion": 218,
+   "kj": 633,
+   "kcal": 151,
+   "category": "饮品"
+  },
+  {
+   "name": "优品豆浆",
+   "variant": "大",
+   "portion": 291,
+   "kj": 844,
+   "kcal": 202,
+   "category": "饮品"
+  },
+  {
+   "name": "纯牛奶（盒装）",
+   "variant": "默认",
+   "portion": 200,
+   "kj": 541,
+   "kcal": 129,
+   "category": "饮品"
+  },
+  {
+   "name": "锡兰红茶",
+   "variant": "默认",
+   "portion": 274,
+   "kj": 8,
+   "kcal": 2,
+   "category": "饮品"
+  },
+  {
+   "name": "纯悦",
+   "variant": "默认",
+   "portion": 550,
+   "kj": 0,
+   "kcal": 0,
+   "category": "饮品"
+  },
+  {
+   "name": "薯条",
+   "variant": "迷你",
+   "portion": 40,
+   "kj": 444,
+   "kcal": 106,
+   "category": "小食"
+  },
+  {
+   "name": "薯条",
+   "variant": "小",
+   "portion": 79,
+   "kj": 877,
+   "kcal": 210,
+   "category": "小食"
+  },
+  {
+   "name": "薯条",
+   "variant": "中",
+   "portion": 109,
+   "kj": 1210,
+   "kcal": 289,
+   "category": "小食"
+  },
+  {
+   "name": "薯条",
+   "variant": "大",
+   "portion": 143,
+   "kj": 1587,
+   "kcal": 379,
+   "category": "小食"
+  },
+  {
+   "name": "脆脆薯条",
+   "variant": "中",
+   "portion": 103,
+   "kj": 1168,
+   "kcal": 279,
+   "category": "小食"
+  },
+  {
+   "name": "麦辣鸡翅",
+   "variant": "2块",
+   "portion": 73,
+   "kj": 937,
+   "kcal": 224,
+   "category": "小食"
+  },
+  {
+   "name": "薄皮焦香V翅",
+   "variant": "2块",
+   "portion": 85,
+   "kj": 804,
+   "kcal": 192,
+   "category": "小食"
+  },
+  {
+   "name": "麦乐鸡 (5块)",
+   "variant": "5块",
+   "portion": 82,
+   "kj": 890,
+   "kcal": 213,
+   "category": "小食"
+  },
+  {
+   "name": "那么大鸡排（椒盐风味）",
+   "variant": "1个",
+   "portion": 154,
+   "kj": 1612,
+   "kcal": 385,
+   "category": "小食"
+  },
+  {
+   "name": "玉米杯",
+   "variant": "小",
+   "portion": 72,
+   "kj": 223,
+   "kcal": 53,
+   "category": "小食"
+  },
+  {
+   "name": "玉米杯",
+   "variant": "大",
+   "portion": 118,
+   "kj": 365,
+   "kcal": 87,
+   "category": "小食"
+  },
+  {
+   "name": "苹果片",
+   "variant": "默认",
+   "portion": 66,
+   "kj": 133,
+   "kcal": 32,
+   "category": "小食"
+  },
+  {
+   "name": "圆筒冰淇淋",
+   "variant": "1个",
+   "portion": 63,
+   "kj": 391,
+   "kcal": 93,
+   "category": "甜品"
+  },
+  {
+   "name": "奥利奥麦旋风",
+   "variant": "1个",
+   "portion": 159,
+   "kj": 1115,
+   "kcal": 266,
+   "category": "甜品"
+  },
+  {
+   "name": "草莓麦旋风",
+   "variant": "1个",
+   "portion": 173,
+   "kj": 1234,
+   "kcal": 295,
+   "category": "甜品"
+  },
+  {
+   "name": "朱古力新地",
+   "variant": "1个",
+   "portion": 156,
+   "kj": 1178,
+   "kcal": 282,
+   "category": "甜品"
+  },
+  {
+   "name": "草莓新地",
+   "variant": "1个",
+   "portion": 156,
+   "kj": 1027,
+   "kcal": 245,
+   "category": "甜品"
+  },
+  {
+   "name": "迷你朱古力新地",
+   "variant": "1份",
+   "portion": 78,
+   "kj": 586,
+   "kcal": 140,
+   "category": "甜品"
+  },
+  {
+   "name": "迷你草莓新地",
+   "variant": "1份",
+   "portion": 78,
+   "kj": 511,
+   "kcal": 122,
+   "category": "甜品"
+  },
+  {
+   "name": "香芋派",
+   "variant": "1个",
+   "portion": 84,
+   "kj": 971,
+   "kcal": 232,
+   "category": "甜品"
+  },
+  {
+   "name": "菠萝派",
+   "variant": "1个",
+   "portion": 84,
+   "kj": 925,
+   "kcal": 221,
+   "category": "甜品"
+  },
+  {
+   "name": "猪柳麦满分",
+   "variant": "1个",
+   "portion": 107,
+   "kj": 1288,
+   "kcal": 308,
+   "category": "早餐"
+  },
+  {
+   "name": "猪柳蛋麦满分",
+   "variant": "1个",
+   "portion": 155,
+   "kj": 1618,
+   "kcal": 387,
+   "category": "早餐"
+  },
+  {
+   "name": "双层猪柳蛋麦满分",
+   "variant": "1个",
+   "portion": 193,
+   "kj": 2148,
+   "kcal": 513,
+   "category": "早餐"
+  },
+  {
+   "name": "火腿扒麦满分",
+   "variant": "1个",
+   "portion": 116,
+   "kj": 1092,
+   "kcal": 261,
+   "category": "早餐"
+  },
+  {
+   "name": "大脆鸡扒麦满分",
+   "variant": "1个",
+   "portion": 136,
+   "kj": 1510,
+   "kcal": 361,
+   "category": "早餐"
+  },
+  {
+   "name": "原味板烧鸡腿麦满分",
+   "variant": "默认",
+   "portion": 121,
+   "kj": 1029,
+   "kcal": 246,
+   "category": "早餐"
+  },
+  {
+   "name": "双层原味板烧鸡腿麦满分",
+   "variant": "1个",
+   "portion": 172,
+   "kj": 1486,
+   "kcal": 355,
+   "category": "早餐"
+  },
+  {
+   "name": "原味板烧鸡腿炒双蛋堡",
+   "variant": "1个",
+   "portion": 201,
+   "kj": 1754,
+   "kcal": 419,
+   "category": "早餐"
+  },
+  {
+   "name": "猪柳炒双蛋堡",
+   "variant": "1个",
+   "portion": 188,
+   "kj": 1827,
+   "kcal": 437,
+   "category": "早餐"
+  },
+  {
+   "name": "火腿扒早安营养卷",
+   "variant": "1个",
+   "portion": 184,
+   "kj": 1857,
+   "kcal": 444,
+   "category": "早餐"
+  },
+  {
+   "name": "图林根香肠早安营养卷",
+   "variant": "1个",
+   "portion": 174,
+   "kj": 1779,
+   "kcal": 425,
+   "category": "早餐"
+  },
+  {
+   "name": "皮蛋鸡肉粥",
+   "variant": "1份",
+   "portion": 72,
+   "kj": 558,
+   "kcal": 133,
+   "category": "早餐"
+  },
+  {
+   "name": "雪菜脆笋鸡肉粥",
+   "variant": "1份",
+   "portion": 62,
+   "kj": 504,
+   "kcal": 120,
+   "category": "早餐"
+  },
+  {
+   "name": "脆薯饼",
+   "variant": "1个",
+   "portion": 54,
+   "kj": 612,
+   "kcal": 146,
+   "category": "早餐"
+  },
+  {
+   "name": "脆香油条",
+   "variant": "1个",
+   "portion": 49,
+   "kj": 844,
+   "kcal": 202,
+   "category": "早餐"
+  },
+  {
+   "name": "德式图林根香肠",
+   "variant": "1个",
+   "portion": 40,
+   "kj": 366,
+   "kcal": 87,
+   "category": "早餐"
+  },
+  {
+   "name": "优品豆浆",
+   "variant": "小",
+   "portion": 218,
+   "kj": 633,
+   "kcal": 151,
+   "category": "早餐"
+  },
+  {
+   "name": "优品豆浆",
+   "variant": "大",
+   "portion": 291,
+   "kj": 844,
+   "kcal": 202,
+   "category": "早餐"
+  },
+  {
+   "name": "“苹板”支撑Pro",
+   "variant": "1份",
+   "portion": 773,
+   "kj": 1993,
+   "kcal": 476,
+   "category": "500大卡套餐"
+  },
+  {
+   "name": "牛气满满",
+   "variant": "1份",
+   "portion": 699,
+   "kj": 2073,
+   "kcal": 495,
+   "category": "500大卡套餐"
+  },
+  {
+   "name": "儿童鱼排堡",
+   "variant": "1个",
+   "portion": 140,
+   "kj": 1126,
+   "kcal": 269,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "汉堡包",
+   "variant": "默认",
+   "portion": 104,
+   "kj": 1039,
+   "kcal": 248,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "麦乐鸡（4块）",
+   "variant": "4块",
+   "portion": 68,
+   "kj": 712,
+   "kcal": 170,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "薯条（迷你）",
+   "variant": "薯条（迷你）",
+   "portion": 40,
+   "kj": 444,
+   "kcal": 106,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "玉米杯 (小)",
+   "variant": "小",
+   "portion": 72,
+   "kj": 223,
+   "kcal": 53,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "苹果片",
+   "variant": "默认",
+   "portion": 66,
+   "kj": 133,
+   "kcal": 32,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "纯牛奶（盒装）",
+   "variant": "默认",
+   "portion": 200,
+   "kj": 541,
+   "kcal": 129,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "纯悦",
+   "variant": "默认",
+   "portion": 550,
+   "kj": 0,
+   "kcal": 0,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "美汁源100%苹果汁 (小)",
+   "variant": "小",
+   "portion": 200,
+   "kj": 368,
+   "kcal": 88,
+   "category": "开心乐园餐"
+  },
+  {
+   "name": "冰奶铁",
+   "variant": "小",
+   "portion": 215,
+   "kj": 358,
+   "kcal": 86,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰奶铁",
+   "variant": "中",
+   "portion": 340,
+   "kj": 618,
+   "kcal": 148,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰奶铁",
+   "variant": "大",
+   "portion": 380,
+   "kj": 678,
+   "kcal": 162,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热奶铁",
+   "variant": "小",
+   "portion": 215,
+   "kj": 559,
+   "kcal": 134,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热奶铁",
+   "variant": "中",
+   "portion": 300,
+   "kj": 779,
+   "kcal": 186,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热奶铁",
+   "variant": "大",
+   "portion": 415,
+   "kj": 1040,
+   "kcal": 249,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶铁",
+   "variant": "小",
+   "portion": 215,
+   "kj": 322,
+   "kcal": 77,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶铁",
+   "variant": "中",
+   "portion": 340,
+   "kj": 554,
+   "kcal": 132,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶铁",
+   "variant": "大",
+   "portion": 380,
+   "kj": 608,
+   "kcal": 145,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶铁",
+   "variant": "小",
+   "portion": 215,
+   "kj": 500,
+   "kcal": 120,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶铁",
+   "variant": "中",
+   "portion": 300,
+   "kj": 697,
+   "kcal": 167,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶铁",
+   "variant": "大",
+   "portion": 415,
+   "kj": 929,
+   "kcal": 222,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰美式",
+   "variant": "小",
+   "portion": 240,
+   "kj": 41,
+   "kcal": 10,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰美式",
+   "variant": "中",
+   "portion": 330,
+   "kj": 54,
+   "kcal": 13,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰美式",
+   "variant": "大",
+   "portion": 450,
+   "kj": 60,
+   "kcal": 14,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热美式",
+   "variant": "小",
+   "portion": 240,
+   "kj": 41,
+   "kcal": 10,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热美式",
+   "variant": "中",
+   "portion": 330,
+   "kj": 54,
+   "kcal": 13,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热美式",
+   "variant": "大",
+   "portion": 450,
+   "kj": 60,
+   "kcal": 14,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰焦糖玛奇朵",
+   "variant": "中",
+   "portion": 315,
+   "kj": 618,
+   "kcal": 148,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热焦糖玛奇朵",
+   "variant": "中",
+   "portion": 270,
+   "kj": 698,
+   "kcal": 167,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "卡布奇诺",
+   "variant": "中",
+   "portion": 270,
+   "kj": 698,
+   "kcal": 167,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "卡布奇诺",
+   "variant": "大",
+   "portion": 375,
+   "kj": 932,
+   "kcal": 223,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓燕麦黑巧",
+   "variant": "中",
+   "portion": 285,
+   "kj": 500,
+   "kcal": 120,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓燕麦黑巧",
+   "variant": "大",
+   "portion": 306,
+   "kj": 547,
+   "kcal": 131,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓燕麦黑巧",
+   "variant": "中",
+   "portion": 275,
+   "kj": 655,
+   "kcal": 157,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓燕麦黑巧",
+   "variant": "大",
+   "portion": 375,
+   "kj": 893,
+   "kcal": 213,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓抹茶牛奶",
+   "variant": "中",
+   "portion": 311,
+   "kj": 821,
+   "kcal": 196,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓抹茶牛奶",
+   "variant": "大",
+   "portion": 344,
+   "kj": 1004,
+   "kcal": 240,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓抹茶牛奶",
+   "variant": "中",
+   "portion": 301,
+   "kj": 996,
+   "kcal": 238,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓抹茶牛奶",
+   "variant": "大",
+   "portion": 414,
+   "kj": 1393,
+   "kcal": 333,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶",
+   "variant": "小",
+   "portion": 230,
+   "kj": 547,
+   "kcal": 131,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶",
+   "variant": "中",
+   "portion": 350,
+   "kj": 833,
+   "kcal": 199,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰燕麦奶",
+   "variant": "大",
+   "portion": 420,
+   "kj": 1000,
+   "kcal": 239,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶",
+   "variant": "小",
+   "portion": 230,
+   "kj": 547,
+   "kcal": 131,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶",
+   "variant": "中",
+   "portion": 275,
+   "kj": 655,
+   "kcal": 157,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热燕麦奶",
+   "variant": "大",
+   "portion": 375,
+   "kj": 893,
+   "kcal": 213,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓黑巧",
+   "variant": "中",
+   "portion": 285,
+   "kj": 563,
+   "kcal": 135,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰浓浓黑巧",
+   "variant": "大",
+   "portion": 305,
+   "kj": 617,
+   "kcal": 147,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓黑巧",
+   "variant": "中",
+   "portion": 275,
+   "kj": 738,
+   "kcal": 176,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热浓浓黑巧",
+   "variant": "大",
+   "portion": 375,
+   "kj": 1006,
+   "kcal": 240,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰牛奶",
+   "variant": "小",
+   "portion": 230,
+   "kj": 617,
+   "kcal": 147,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰牛奶",
+   "variant": "中",
+   "portion": 350,
+   "kj": 939,
+   "kcal": 224,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "冰牛奶",
+   "variant": "大",
+   "portion": 420,
+   "kj": 1127,
+   "kcal": 269,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热牛奶",
+   "variant": "小",
+   "portion": 230,
+   "kj": 617,
+   "kcal": 147,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热牛奶",
+   "variant": "中",
+   "portion": 275,
+   "kj": 738,
+   "kcal": 176,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "热牛奶",
+   "variant": "大",
+   "portion": 375,
+   "kj": 1006,
+   "kcal": 240,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "浓浓抹茶雪冰",
+   "variant": "中",
+   "portion": 276,
+   "kj": 1208,
+   "kcal": 289,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "浓浓抹茶雪冰",
+   "variant": "大",
+   "portion": 319,
+   "kj": 1418,
+   "kcal": 339,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "浓浓黑巧雪冰",
+   "variant": "中",
+   "portion": 290,
+   "kj": 1501,
+   "kcal": 359,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "浓浓黑巧雪冰",
+   "variant": "大",
+   "portion": 340,
+   "kj": 1857,
+   "kcal": 444,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "抹茶阿芙佳朵",
+   "variant": "一杯",
+   "portion": 92,
+   "kj": 613,
+   "kcal": 147,
+   "category": "McCafé 饮品及其他"
+  },
+  {
+   "name": "咖啡阿芙佳朵",
+   "variant": "一杯",
+   "portion": 116,
+   "kj": 583,
+   "kcal": 139,
+   "category": "McCafé 饮品及其他"
+  }
+ ]
+}
