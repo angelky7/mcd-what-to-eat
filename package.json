@@ -1,11 +1,24 @@
 {
   "name": "mcd-what-to-eat",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "用麦当劳 MCP 能力做「今天吃什么 + 怎么最省」的 WorkBuddy Skill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/caob23/mcd-what-to-eat.git"
+  },
+  "keywords": [
+    "mcdonalds",
+    "mcp",
+    "mcd-mcp",
+    "workbuddy",
+    "skill",
+    "coupon"
+  ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.12"
   },
   "scripts": {
     "ping": "node src/mcp.mjs ping",

@@ -19,29 +19,33 @@ description: 用麦当劳 MCP 能力推荐「今天吃什么 + 怎么点最省�
 
 主流程固定三步：
 
-1. `query-nearby-stores` —— 参数 `{"beType":1,"city":"<城市>","searchType":1}`，取 `data[0].storeCode`（到店自取）；用户要驾车就用 `beType=5`，此时后续调用必须带上 `beCode`。
+1. `query-nearby-stores` —— 参数 `{"beType":1,"city":"<城市>","keyword":"<地点，可选>","searchType":2}`，取 `data[0].storeCode`（到店自取）；用户要驾车就用 `beType=5`，此时后续调用必须带上 `beCode`。
+   ⚠️ `searchType` 必须传 **2**（按地点搜索）：传 1 只搜「收藏餐厅」且忽略 `city`，会稳定返回账号收藏的那家店，城市再对也没用。城市查询失败时才退回 `searchType=1` 并在输出里注明。
 2. `query-meals` —— 参数 `{"storeCode":"<门店>","beType":1,"orderType":1}`，返回 `data.categories[]` 分类与 `data.meals{}` 详情（`name`、`currentPrice`、`originalPrice`）。
 3. `query-store-coupons` —— 参数同上，返回该门店可用券：`title`、`products[].productCode`、`tradeDateTime`。
 
-辅助工具：`campaign-calendar`（当月活动）、`available-coupons` / `auto-bind-coupons`（领券）、`query-my-coupons`（我的券）、`calculate-price`（含优惠算价）。
+辅助工具：`campaign-calendar`（当月活动）、`available-coupons` / `auto-bind-coupons`（领券）、`query-my-coupons`（我的券）、`calculate-price`（含优惠算价，活动券算不出优惠时用它挂券试算）。
 
 ## 执行方式
 
 优先直接跑脚本，一步到位：
 
 ```bash
-node src/plan.mjs <城市> <预算>
-# 例：node src/plan.mjs 郑州市 30
+node src/plan.mjs <城市> <预算> [地点关键词]
+# 例：node src/plan.mjs 北京市 30
+# 例：node src/plan.mjs 北京市 30 国贸
 ```
 
 输出形如：
 
 ```
-门店：麦当劳××得来速餐厅（140XXXX）  在售餐品：125 款
-推荐组合：酥脆无双套餐 ¥20 + 圆筒冰淇淋 ¥5
-原价 ¥25｜实付 ¥25｜预算 30
-可用券：1024“码”力翻倍（限 龙焰鸡腿堡两件套，至 2026-10-30）
+门店：麦当劳北京前门西街餐厅（1950212）  在售餐品：91 款
+推荐组合：牛肉堡单品精选 ¥15.5 + 圆筒冰淇淋 ¥5 + 纯悦 ¥9
+原价 ¥29.5｜实付 ¥29.5｜预算 30
+可用券：当前门店未查到匹配的券
 ```
+
+用到券时价格行会多出「券 -¥X（券名）」，可用券行把实际采用的那张标为「★已用」；券的目标商品本店没在售时，券行会追加「目标商品本店未在售」——这种券不能算优惠，也不要向用户暗示能用。
 
 需要自定义时按工具顺序手动调，再把数据整理成 `{ items, coupons }` 交给 `planCombo`，**不要手算**。
 
@@ -51,8 +55,8 @@ node src/plan.mjs <城市> <预算>
 
 - **门店**：门店名 + storeCode + 在售餐品数
 - **推荐组合**：主食 + 小食 + 饮料，各自价格
-- **价格**：原价 / 实付 / 预算，超预算要标明
-- **可用券**：券名 + 适用商品 + 有效期，命中本单的标 ★
+- **价格**：原价 / 券优惠 / 实付 / 预算，超预算要标明 ⚠
+- **可用券**：券名 + 适用商品 + 有效期，实际采用的标 ★已用，商品命中本单的标 ★匹配本单，目标商品本店未在售的要注明
 
 ## 数据格式
 
