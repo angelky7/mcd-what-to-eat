@@ -1,0 +1,15 @@
+{
+  "items": [
+    { "id": "bigmac", "name": "巨无霸", "price": 24, "category": "main" },
+    { "id": "mchicken", "name": "麦香鸡", "price": 15, "category": "main" },
+    { "id": "fries", "name": "中薯", "price": 11, "category": "side" },
+    { "id": "small-fries", "name": "小薯", "price": 7, "category": "side" },
+    { "id": "coke", "name": "中杯可乐", "price": 9, "category": "drink" },
+    { "id": "water", "name": "纯水", "price": 4, "category": "drink" }
+  ],
+  "coupons": [
+    { "id": "c1", "name": "巨无霸免费兑换券", "type": "free_item", "target": "bigmac", "remaining": 1 },
+    { "id": "c2", "name": "满 20 减 3", "type": "threshold_off", "minSpend": 20, "amount": 3, "remaining": 1 },
+    { "id": "c3", "name": "全线 9 折", "type": "percent_off", "percent": 10, "remaining": 1 }
+  ]
+}

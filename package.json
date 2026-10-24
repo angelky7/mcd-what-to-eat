@@ -1,0 +1,18 @@
+{
+  "name": "mcd-what-to-eat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "用麦当劳 MCP 能力做「今天吃什么 + 怎么最省」的 WorkBuddy Skill",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "ping": "node src/mcp.mjs ping",
+    "tools": "node src/mcp.mjs list",
+    "call": "node src/mcp.mjs call",
+    "demo": "node src/combo.mjs examples/menu.json 30",
+    "test": "node --test",
+    "plan": "node src/plan.mjs"
+  }
+}
