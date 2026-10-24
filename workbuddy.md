@@ -7,7 +7,7 @@
 - 开发工具：WorkBuddy（Agent 模式）
 - 开发日期：2026-10-24
 - 运行环境：Windows + Git Bash，Node.js v22.22.2（仓库要求 Node >= 20.12）
-- 代码仓库：https://github.com/caob23/mcd-what-to-eat
+- 代码仓库：https://github.com/angelky7/mcd-what-to-eat
 
 ## 开发过程（按时间顺序）
 

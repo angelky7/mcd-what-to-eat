@@ -152,7 +152,7 @@ query-meal-detail {"code":"<精选单人餐三件套>", storeCode, beType, order
 
 ## 在线 Demo 与线上的一致性
 
-<https://caob23.github.io/mcd-what-to-eat/>
+<https://angelky7.github.io/mcd-what-to-eat/>
 
 Demo 是静态页（`docs/`，GitHub Pages 托管，无框架无 CDN 无构建），但它**跑的是同一份组合器**：`docs/core/combo-core.mjs` 由 `npm run demo:sync` 从 `src/core/combo-core.mjs` 复制而来，`test/demo.test.mjs` 断言两者逐字节一致。Demo 的菜单数据是脱敏快照（去掉了 `storeCode` 与 `couponCode`），页面也不含任何 Token——所有计算都在浏览器本地完成，不发网络请求。
 

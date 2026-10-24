@@ -1,8 +1,8 @@
 # 麦麦吃什么 · mcd-what-to-eat
 
-[![Release](https://img.shields.io/github/v/release/caob23/mcd-what-to-eat)](https://github.com/caob23/mcd-what-to-eat/releases/latest)
-[![Stars](https://img.shields.io/github/stars/caob23/mcd-what-to-eat)](https://github.com/caob23/mcd-what-to-eat/stargazers)
-[![License](https://img.shields.io/github/license/caob23/mcd-what-to-eat)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/angelky7/mcd-what-to-eat)](https://github.com/angelky7/mcd-what-to-eat/releases/latest)
+[![Stars](https://img.shields.io/github/stars/angelky7/mcd-what-to-eat)](https://github.com/angelky7/mcd-what-to-eat/stargazers)
+[![License](https://img.shields.io/github/license/angelky7/mcd-what-to-eat)](./LICENSE)
 ![Node](https://img.shields.io/badge/node-%3E%3D20.12-green)
 ![McDonald's MCP](https://img.shields.io/badge/McDonald%27s%20MCP-mcd--mcp%201.0.0-red)
 
@@ -12,7 +12,7 @@
 
 ## 在线 Demo
 
-**<https://caob23.github.io/mcd-what-to-eat/>** —— 打开即用，不用配 Token、不用装环境。
+**<https://angelky7.github.io/mcd-what-to-eat/>** —— 打开即用，不用配 Token、不用装环境。
 
 Demo 用的是**脱敏快照**（北京 · 前门、上海 · 黄浦两家门店的当日菜单 + 官方热量，已去掉 `storeCode` / `couponCode`），组合器与线上是同一份代码：`docs/core/combo-core.mjs` 是 `src/core/combo-core.mjs` 的同步副本，`npm test` 会断言两者逐字节一致，因此不存在「Demo 一套逻辑、线上另一套逻辑」。
 
