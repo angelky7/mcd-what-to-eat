@@ -1,5 +1,11 @@
 # 麦麦吃什么 · mcd-what-to-eat
 
+[![Release](https://img.shields.io/github/v/release/caob23/mcd-what-to-eat)](https://github.com/caob23/mcd-what-to-eat/releases/latest)
+[![Stars](https://img.shields.io/github/stars/caob23/mcd-what-to-eat)](https://github.com/caob23/mcd-what-to-eat/stargazers)
+[![License](https://img.shields.io/github/license/caob23/mcd-what-to-eat)](./LICENSE)
+![Node](https://img.shields.io/badge/node-%3E%3D%2018-green)
+![McDonald's MCP](https://img.shields.io/badge/McDonald%27s%20MCP-mcd--mcp%201.0.0-red)
+
 一个 WorkBuddy Skill：**先算预算，再选券，最后推荐组合**。它不猜价格、不背菜单，门店、餐品、券和活动全部通过麦当劳 MCP 实时取，再用一个确定性的组合器算出「预算内、用掉最划算那张券」的点餐方案。
 
 ## 使用的麦当劳 MCP 能力
