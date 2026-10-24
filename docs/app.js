@@ -14,6 +14,7 @@ const REQUIRE_OPTIONS = [
   ["drink", "含饮品"],
 ];
 const BUDGET_CHIPS = [15, 20, 30, 50, 80];
+const DEFAULT_BANNER = "示例门店菜单 + 官方热量（非实时）。券里标「虚构」的是演示券，只用于演示用券计算。";
 
 const $ = (id) => document.getElementById(id);
 const state = { data: null, stores: [], storeId: null, custom: null, lastPlan: null };
@@ -86,7 +87,7 @@ function bindEvents() {
   $("reset-custom").addEventListener("click", () => {
     state.custom = null;
     $("custom-json").value = "";
-    $("banner").textContent = "示例菜单数据，非实时门店库存与价格。";
+    $("banner").textContent = DEFAULT_BANNER;
     refreshCoupons();
     compute();
   });
@@ -142,13 +143,15 @@ function refreshCoupons() {
   $("coupons").innerHTML = coupons
     .map((coupon) => {
       const detail = [
-        coupon.appliesTo ? `限 ${escapeHtml(coupon.appliesTo)}` : "",
+        coupon.demo ? "虚构的演示券" : "",
+        coupon.appliesTo && !coupon.demo ? `限 ${escapeHtml(coupon.appliesTo)}` : "",
         coupon.validUntil ? `至 ${escapeHtml(coupon.validUntil)}` : "",
         coupon.targetOnSale === false ? "目标商品本店未在售" : "",
       ]
         .filter(Boolean)
         .join("，");
-      return `<label><input type="checkbox" value="${escapeHtml(coupon.id)}" checked /><span>${escapeHtml(coupon.name)}<br /><small>${detail}</small></span></label>`;
+      const name = escapeHtml(coupon.name);
+      return `<label${coupon.demo ? ' title="虚构券，仅用于演示用券计算"' : ""}><input type="checkbox" value="${escapeHtml(coupon.id)}" checked /><span>${name}<br /><small>${detail}</small></span></label>`;
     })
     .join("");
 }

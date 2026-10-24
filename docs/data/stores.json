@@ -1,6 +1,6 @@
 {
  "generatedAt": "2026-10-24",
- "note": "示例数据：真实门店菜单与官方营养数据，门店名与编码已脱敏；非实时，仅供演示。",
+ "note": "示例数据：真实门店菜单与官方营养数据，门店名与编码已脱敏；餐品非实时。券分两类：真实门店券（只保留展示字段）与标注「虚构」的演示券（用于演示用券计算）。",
  "stores": [
   {
    "id": "demo-a",
@@ -64,7 +64,8 @@
      "id": "9900004064",
      "name": "精选单人餐三件套",
      "price": 35,
-     "category": "main"
+     "category": "main",
+     "kcal": 827
     },
     {
      "id": "521950",
@@ -131,7 +132,8 @@
      "id": "9900010110",
      "name": "鱼牛汉堡四件套随心选",
      "price": 32,
-     "category": "main"
+     "category": "main",
+     "kcal": 1048
     },
     {
      "id": "9900006957",
@@ -168,7 +170,8 @@
      "id": "9900000890",
      "name": "板烧鸡腿堡四件套",
      "price": 28,
-     "category": "main"
+     "category": "main",
+     "kcal": 997
     },
     {
      "id": "9900005462",
@@ -180,13 +183,15 @@
      "id": "9900005456",
      "name": "麦辣鸡腿汉堡三件套",
      "price": 34,
-     "category": "main"
+     "category": "main",
+     "kcal": 921
     },
     {
      "id": "9900005453",
      "name": "麦香鸡套餐",
      "price": 28,
-     "category": "main"
+     "category": "main",
+     "kcal": 805
     },
     {
      "id": "9900003537",
@@ -274,19 +279,22 @@
      "id": "9900000888",
      "name": "巨无霸四件套",
      "price": 32,
-     "category": "main"
+     "category": "main",
+     "kcal": 1119
     },
     {
      "id": "9900000886",
      "name": "不素之霸双层牛堡四件套",
      "price": 32,
-     "category": "main"
+     "category": "main",
+     "kcal": 1099
     },
     {
      "id": "9900000885",
      "name": "培根蔬萃双层牛堡四件套",
      "price": 32,
-     "category": "main"
+     "category": "main",
+     "kcal": 1048
     },
     {
      "id": "9900000893",
@@ -322,13 +330,15 @@
      "id": "9900005460",
      "name": "麦香鱼套餐",
      "price": 33.5,
-     "category": "main"
+     "category": "main",
+     "kcal": 761
     },
     {
      "id": "9900005464",
      "name": "双层吉士汉堡套餐",
      "price": 34,
-     "category": "main"
+     "category": "main",
+     "kcal": 865
     },
     {
      "id": "9900005449",
@@ -489,7 +499,8 @@
      "id": "9900005432",
      "name": "麦麦脆汁鸡1块",
      "price": 15,
-     "category": "side"
+     "category": "side",
+     "kcal": 328
     },
     {
      "id": "9900015602",
@@ -581,7 +592,8 @@
      "id": "9900008754",
      "name": "经典麦旋风",
      "price": 15,
-     "category": "side"
+     "category": "side",
+     "kcal": 266
     },
     {
      "id": "9900008745",
@@ -783,6 +795,37 @@
    ],
    "coupons": [
     {
+     "id": "demo-free",
+     "name": "演示券·免费兑换圆筒冰淇淋（虚构）",
+     "appliesTo": "圆筒冰淇淋",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "free_item",
+     "target": "515837",
+     "demo": true
+    },
+    {
+     "id": "demo-threshold",
+     "name": "演示券·满 25 减 5（虚构）",
+     "appliesTo": "全部商品",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "threshold_off",
+     "minSpend": 25,
+     "amount": 5,
+     "demo": true
+    },
+    {
+     "id": "demo-percent",
+     "name": "演示券·全场 9 折（虚构）",
+     "appliesTo": "全部商品",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "percent_off",
+     "percent": 10,
+     "demo": true
+    },
+    {
      "id": "BF9D73D8C43E365590AD1854BFFD01C4",
      "name": "1024“码”力翻倍",
      "appliesTo": "龙焰鸡腿堡两件套",
@@ -938,7 +981,8 @@
      "id": "9900005466",
      "name": "巨无霸三件套",
      "price": 54.5,
-     "category": "main"
+     "category": "main",
+     "kcal": 949
     },
     {
      "id": "9900005468",
@@ -1031,19 +1075,22 @@
      "id": "9900008747",
      "name": "牛肉堡单品精选",
      "price": 15.5,
-     "category": "main"
+     "category": "main",
+     "kcal": 248
     },
     {
      "id": "9900005428",
      "name": "培根安格斯厚牛堡三件套",
      "price": 63.5,
-     "category": "main"
+     "category": "main",
+     "kcal": 1143
     },
     {
      "id": "9900005430",
      "name": "芝士安格斯厚牛堡三件套",
      "price": 60.5,
-     "category": "main"
+     "category": "main",
+     "kcal": 1132
     },
     {
      "id": "511781",
@@ -1378,7 +1425,39 @@
      "kcal": 2
     }
    ],
-   "coupons": []
+   "coupons": [
+    {
+     "id": "demo-free",
+     "name": "演示券·免费兑换圆筒冰淇淋（虚构）",
+     "appliesTo": "圆筒冰淇淋",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "free_item",
+     "target": "515837",
+     "demo": true
+    },
+    {
+     "id": "demo-threshold",
+     "name": "演示券·满 25 减 5（虚构）",
+     "appliesTo": "全部商品",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "threshold_off",
+     "minSpend": 25,
+     "amount": 5,
+     "demo": true
+    },
+    {
+     "id": "demo-percent",
+     "name": "演示券·全场 9 折（虚构）",
+     "appliesTo": "全部商品",
+     "validUntil": null,
+     "targetOnSale": true,
+     "type": "percent_off",
+     "percent": 10,
+     "demo": true
+    }
+   ]
   }
  ]
 }
