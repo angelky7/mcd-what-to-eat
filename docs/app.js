@@ -440,7 +440,7 @@ function renderSwaps(plan) {
     .join("");
   return `<div class="card swap"><div style="padding: 12px 20px 4px">
       <details open>
-        <summary>换一换：这份套餐里的单品可以换</summary>
+        <summary>换单品：这份套餐里的每一样都能换</summary>
         <div class="rows">${blocks}<p class="empty" style="margin: 2px 0 0; font-size: 12px">换单品会同时改这份套餐的价格和热量。</p></div>
       </details>
     </div></div>`;
